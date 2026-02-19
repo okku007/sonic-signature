@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Sound wave arcs (signature waveform) -->
+    <path
+        android:pathData="M54,34 C54,34 62,44 62,54 C62,64 54,74 54,74"
+        android:strokeWidth="3"
+        android:fillColor="#00000000"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M54,28 C54,28 68,40 68,54 C68,68 54,80 54,80"
+        android:strokeWidth="3"
+        android:fillColor="#00000000"
+        android:strokeColor="#CCFFFFFF"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M54,22 C54,22 74,36 74,54 C74,72 54,86 54,86"
+        android:strokeWidth="3"
+        android:fillColor="#00000000"
+        android:strokeColor="#99FFFFFF"
+        android:strokeLineCap="round" />
+
+    <!-- IEM earpiece shape -->
+    <path
+        android:pathData="M34,48 C34,42 38,36 46,36 C50,36 52,38 52,42 L52,66 C52,70 50,72 46,72 C38,72 34,66 34,60 Z"
+        android:fillColor="#FFFFFF" />
+    <path
+        android:pathData="M42,72 L40,82 C40,84 41,85 43,85 L45,85 C47,85 48,84 48,82 L46,72"
+        android:fillColor="#CCFFFFFF" />
+</vector>

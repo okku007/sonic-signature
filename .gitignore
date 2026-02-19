@@ -1,0 +1,39 @@
+# Security — never commit secrets (constitution §5.1)
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+.env
+secrets/
+local.properties
+
+# Gradle
+.gradle/
+build/
+**/build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.DS_Store
+
+# Android
+/androidApp/release/
+/androidApp/*.apk
+/androidApp/*.aab
+
+# Kotlin/Native
+*.klib
+xcuserdata/
+*.xcworkspace/xcuserdata/
+DerivedData/
+
+# Desktop
+*.dmg
+*.msi
+*.deb
+*.rpm
