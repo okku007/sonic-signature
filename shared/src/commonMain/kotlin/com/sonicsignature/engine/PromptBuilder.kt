@@ -1,8 +1,8 @@
 package com.sonicsignature.engine
 
-import com.sonicsignature.model.AudioFeatures
 import com.sonicsignature.model.BudgetTier
 import com.sonicsignature.model.SongMetadata
+import com.sonicsignature.model.TrackTags
 
 /**
  * Builds structured LLM prompts for IEM recommendations. Supports three input modes: song-based,
@@ -24,26 +24,37 @@ object PromptBuilder {
         - Recommend exactly 3 IEMs
     """.trimIndent()
 
-    /** Builds a prompt from Spotify song metadata + audio features. */
-    fun buildSongPrompt(song: SongMetadata, features: AudioFeatures, budget: BudgetTier): String =
-            """
+    /** Builds a prompt from one or more songs with their Last.fm tags. */
+    fun buildSongPrompt(
+            songsWithTags: List<Pair<SongMetadata, TrackTags>>,
+            budget: BudgetTier
+    ): String {
+        val songEntries =
+                songsWithTags
+                        .mapIndexed { i, (song, tags) ->
+                            val tagLine =
+                                    if (tags.tags.isNotEmpty()) tags.tags.joinToString(", ")
+                                    else "unknown"
+                            "${i + 1}. ${song.name} by ${song.artist} [Tags: $tagLine]"
+                        }
+                        .joinToString("\n")
+
+        return """
         You are an expert audiophile consultant specializing in In-Ear Monitors (IEMs).
-        Analyze the following music metadata and recommend exactly 3 IEMs.
+        Analyze the following music taste profile and recommend exactly 3 IEMs.
         
-        SONG METADATA:
+        SONGS IN LISTENING PROFILE:
         [USER INPUT START]
-        - Track: ${song.name} by ${song.artist}
-        - Genre(s): ${song.genres.joinToString().ifEmpty { "Unknown" }}
+        $songEntries
         [USER INPUT END]
-        - BPM: ${"%.1f".format(features.tempo)}
-        - Energy: ${"%.2f".format(features.energy)} (0=calm, 1=intense)
-        - Valence: ${"%.2f".format(features.valence)} (0=dark/sad, 1=happy/euphoric)
-        - Acousticness: ${"%.2f".format(features.acousticness)} (0=synthetic, 1=organic)
-        - Speechiness: ${"%.2f".format(features.speechiness)} (0=instrumental, 1=spoken word)
-        - Danceability: ${"%.2f".format(features.danceability)}
+        
+        Use the tags and artists above to infer the sonic characteristics of this listener's
+        taste (energy, mood, instrumental complexity, production style) and match IEMs whose
+        sound signature and technical strengths complement this type of music.
         
         ${baseInstructions(budget)}
     """.trimIndent()
+    }
 
     /** Builds a prompt from one or more artist names as a taste profile. */
     fun buildArtistPrompt(artists: List<String>, budget: BudgetTier): String {

@@ -34,14 +34,14 @@ fun MainWindow() {
             }
         }
     }
-    val spotifyClient = remember { SpotifyClient(httpClient) }
+    val musicClient = remember { MusicClient(httpClient) }
     val llmFactory = remember { LLMClientFactory(httpClient, vault) }
-    val engine = remember { RecommendationEngine(spotifyClient, llmFactory) }
+    val engine = remember { RecommendationEngine(musicClient, llmFactory) }
 
     // Desktop uses localhost directly
     LaunchedEffect(Unit) { BackendConfig.baseUrl = "http://localhost:8080" }
 
-    val searchVM = remember { SearchViewModel(spotifyClient) }
+    val searchVM = remember { SearchViewModel(musicClient) }
     val recVM = remember { RecommendationViewModel(engine) }
     val settingsVM = remember { SettingsViewModel(vault, httpClient) }
 
@@ -79,6 +79,7 @@ fun MainWindow() {
                                 recVM.onTrackSelected(track)
                                 searchVM.clearResults()
                             },
+                            onTrackRemoved = recVM::onTrackRemoved,
                             onInputModeChanged = recVM::onInputModeChanged,
                             onArtistAdded = recVM::onArtistAdded,
                             onArtistRemoved = recVM::onArtistRemoved,

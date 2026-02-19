@@ -1,24 +1,38 @@
 # Sonic Signature
 
-IEM recommendation app. You give it songs you like, it analyzes audio features via Spotify and uses an LLM to recommend in-ear monitors that match your listening profile.
+IEM recommendation app. You search for songs you enjoy, add them to a listening profile, and an LLM recommends In-Ear Monitors (IEMs) that match the sonic characteristics of your music taste — powered by Last.fm metadata and community-driven tags.
 
 ## Architecture
 
 Kotlin Multiplatform. Four Gradle modules:
 
-- **shared** -- ViewModels, API clients, recommendation engine. Common code for all platforms.
-- **androidApp** -- Compose UI targeting Android.
-- **desktopApp** -- Compose Desktop (JVM).
-- **backend** -- Ktor server. Handles Spotify API authentication and proxies requests.
+```mermaid
+graph LR
+    A[androidApp] --> S[shared]
+    D[desktopApp] --> S
+    S -->|HTTP| B[backend]
+    B -->|Last.fm API| L[last.fm]
+    S -->|LLM API| G[Gemini / OpenRouter]
+```
 
-The app never talks to Spotify directly. All Spotify calls go through the backend, which manages its own Client Credentials token.
+- **shared** — ViewModels, API clients, recommendation engine. Common code for all platforms.
+- **androidApp** — Compose UI targeting Android.
+- **desktopApp** — Compose Desktop (JVM).
+- **backend** — Ktor server. Proxies Last.fm API requests and keeps the API key server-side.
+
+### Data Flow
+
+1. **User searches** for songs → `MusicClient` calls backend → backend queries Last.fm `track.search`
+2. **User selects** one or more songs → displayed as removable chips
+3. **User taps "Find My IEM"** → `RecommendationEngine` fetches Last.fm tags for each song → builds a combined prompt → calls the LLM
+4. **LLM returns** 3 IEM recommendations as structured JSON → parsed and displayed
 
 ## Prerequisites
 
 - JDK 17+
 - Android SDK (API 34)
-- A Spotify Developer app (Client ID + Secret)
-- An LLM API key (Gemini or OpenRouter)
+- A **Last.fm API key** — free at https://www.last.fm/api/account/create
+- An **LLM API key** (Gemini or OpenRouter)
 
 ## Setup
 
@@ -26,11 +40,8 @@ The app never talks to Spotify directly. All Spotify calls go through the backen
 
 2. Create `backend/.env`:
 ```
-SPOTIFY_CLIENT_ID=your_client_id
-SPOTIFY_CLIENT_SECRET=your_client_secret
+LASTFM_API_KEY=your_lastfm_api_key
 ```
-
-3. Register `http://127.0.0.1:8080/auth/spotify/callback` as a redirect URI in your Spotify Developer Dashboard (not currently used by Client Credentials flow, but required by Spotify app config).
 
 ## Running
 
@@ -63,31 +74,61 @@ Backend URL is set to `localhost:8080` automatically.
 
 ## Configuration
 
-Open the app, go to Settings, select your LLM provider (Gemini or OpenRouter), and enter your API key. Keys are stored in platform-specific secure storage (Android Keystore / macOS Keychain / encrypted preferences on desktop).
+Open the app → Settings → select your LLM provider (Gemini or OpenRouter) → enter your API key. Keys are stored in platform-specific secure storage (Android Keystore / encrypted preferences on desktop).
 
-Spotify credentials live exclusively in `backend/.env`. The app has no knowledge of them.
+Last.fm API key lives exclusively in `backend/.env`. The app has no knowledge of it.
+
+### Budget Tiers
+
+| Tier | Price Range |
+|------|------------|
+| Ultra-Budget | <₹1,000 |
+| Entry | ₹2,000–₹6,500 |
+| Mid-Range | ₹8,000–₹40,000 |
+| High-End | >₹80,000 |
+
+### Input Modes
+
+| Mode | How it works |
+|------|-------------|
+| **Song** | Search & select multiple songs → tags fetched from Last.fm → LLM analyzes combined profile |
+| **Artist** | Type artist names as chips → LLM infers sonic characteristics |
+| **Genre/Mood** | Free-text description → LLM recommends based on described preferences |
 
 ## Project Structure
 
 ```
 sonic-signature/
   backend/
-    .env                          # Spotify credentials (gitignored)
+    .env                              # Last.fm API key (gitignored)
     src/main/kotlin/.../
-      Application.kt             # Ktor entry point
-      service/SpotifyOAuthService.kt  # Client Credentials token management
-      routes/SpotifyProxyRoutes.kt    # /api/spotify/search, /audio-features
+      Application.kt                 # Ktor entry point
+      service/LastFmService.kt        # Reads LASTFM_API_KEY from .env
+      routes/LastFmProxyRoutes.kt     # /api/music/search, /api/music/tags
   shared/
     src/commonMain/kotlin/.../
-      api/                        # SpotifyClient, LLM providers, BackendConfig
-      engine/                     # RecommendationEngine, PromptBuilder, Parser
-      model/                      # SongMetadata, AudioFeatures, IEMRecommendation
-      viewmodel/                  # SearchViewModel, RecommendationViewModel, SettingsVM
-      storage/                    # SecureVault (expect/actual), VaultKeys
-  androidApp/                     # Compose UI + navigation
-  desktopApp/                     # Compose Desktop window
+      api/
+        MusicClient.kt               # Last.fm search + tags via backend proxy
+        BackendConfig.kt              # Backend URL configuration
+        LLMClientFactory.kt           # Creates Gemini/OpenRouter providers
+        GeminiProvider.kt             # Gemini API client
+        OpenRouterProvider.kt         # OpenRouter API client
+      engine/
+        RecommendationEngine.kt       # Orchestrates: tags → prompt → LLM → parse
+        PromptBuilder.kt              # Builds structured LLM prompts
+        RecommendationParser.kt       # Parses JSON responses to IEMRecommendation
+      model/
+        SongMetadata.kt               # Track name, artist, album art URL
+        TrackTags.kt                  # Last.fm tags (genre, mood, style)
+        IEMRecommendation.kt          # IEM name, brand, price, justification
+        BudgetTier.kt                 # Ultra-Budget / Entry / Mid-Range / High-End
+      viewmodel/
+        SearchViewModel.kt            # Debounced song search
+        RecommendationViewModel.kt    # Multi-song selection, input modes, results
+        SettingsViewModel.kt          # LLM provider configuration
+      storage/
+        SecureVault.kt                # expect/actual secure key storage
+  androidApp/                         # Compose UI + navigation
+  desktopApp/                         # Compose Desktop window
 ```
 
-## License
-
-Not yet specified.

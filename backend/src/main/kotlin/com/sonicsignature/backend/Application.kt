@@ -1,7 +1,7 @@
 package com.sonicsignature.backend
 
-import com.sonicsignature.backend.routes.spotifyProxyRoutes
-import com.sonicsignature.backend.service.SpotifyAuthService
+import com.sonicsignature.backend.routes.lastFmProxyRoutes
+import com.sonicsignature.backend.service.LastFmService
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.server.application.*
@@ -40,7 +40,7 @@ private fun Application.configurePlugins() {
 }
 
 private fun Application.configureRouting() {
-    val authService = SpotifyAuthService()
+    val lastFmService = LastFmService()
 
-    routing { spotifyProxyRoutes(authService) }
+    routing { lastFmProxyRoutes(lastFmService) }
 }

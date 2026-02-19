@@ -18,7 +18,7 @@ enum class InputMode {
 
 data class RecommendationUiState(
         val inputMode: InputMode = InputMode.SONG,
-        val selectedTrack: SongMetadata? = null,
+        val selectedTracks: List<SongMetadata> = emptyList(),
         val artistChips: List<String> = emptyList(),
         val genreDescription: String = "",
         val selectedBudget: BudgetTier = BudgetTier.MID_RANGE,
@@ -43,7 +43,17 @@ class RecommendationViewModel(
     }
 
     fun onTrackSelected(track: SongMetadata) {
-        _state.value = _state.value.copy(selectedTrack = track, error = null)
+        val current = _state.value.selectedTracks
+        if (current.none { it.id == track.id }) {
+            _state.value = _state.value.copy(selectedTracks = current + track, error = null)
+        }
+    }
+
+    fun onTrackRemoved(track: SongMetadata) {
+        _state.value =
+                _state.value.copy(
+                        selectedTracks = _state.value.selectedTracks.filter { it.id != track.id }
+                )
     }
 
     fun onArtistAdded(artist: String) {
@@ -72,17 +82,19 @@ class RecommendationViewModel(
             val result =
                     when (current.inputMode) {
                         InputMode.SONG -> {
-                            val track =
-                                    current.selectedTrack
-                                            ?: return@launch run {
-                                                _state.value =
-                                                        _state.value.copy(
-                                                                isLoading = false,
-                                                                error =
-                                                                        "Please select a song first."
-                                                        )
-                                            }
-                            engine.recommendFromSong(track, current.selectedBudget)
+                            if (current.selectedTracks.isEmpty()) {
+                                return@launch run {
+                                    _state.value =
+                                            _state.value.copy(
+                                                    isLoading = false,
+                                                    error = "Please add at least one song."
+                                            )
+                                }
+                            }
+                            engine.recommendFromSongs(
+                                    current.selectedTracks,
+                                    current.selectedBudget
+                            )
                         }
                         InputMode.ARTIST -> {
                             if (current.artistChips.isEmpty()) {

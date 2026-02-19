@@ -130,6 +130,15 @@ fun ResultsScreen(
                                     modifier = Modifier.fillMaxWidth()
                             ) { Text("Search Again") }
                         }
+                        item {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                    "Prices shown are approximate. Please verify current pricing before purchasing.",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                            )
+                        }
                     }
                 }
             }

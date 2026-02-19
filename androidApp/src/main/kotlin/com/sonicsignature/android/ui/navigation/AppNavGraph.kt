@@ -28,7 +28,7 @@ fun AppNavGraph() {
 
     // ── Dependency wiring ────────────────────────────────────────────────────
     // For physical device testing, uncomment and set your machine's local IP:
-    // BackendConfig.baseUrl = "http://<YOUR_LOCAL_IP>:8080"
+    BackendConfig.baseUrl = "http://192.168.3.250:8080"
     val vault = remember { SecureVault() }
     val httpClient = remember {
         HttpClient {
@@ -42,11 +42,11 @@ fun AppNavGraph() {
             }
         }
     }
-    val spotifyClient = remember { SpotifyClient(httpClient) }
+    val musicClient = remember { MusicClient(httpClient) }
     val llmFactory = remember { LLMClientFactory(httpClient, vault) }
-    val engine = remember { RecommendationEngine(spotifyClient, llmFactory) }
+    val engine = remember { RecommendationEngine(musicClient, llmFactory) }
 
-    val searchVM = remember { SearchViewModel(spotifyClient) }
+    val searchVM = remember { SearchViewModel(musicClient) }
     val recVM = remember { RecommendationViewModel(engine) }
     val settingsVM = remember { SettingsViewModel(vault, httpClient) }
 
@@ -66,6 +66,7 @@ fun AppNavGraph() {
                         recVM.onTrackSelected(track)
                         searchVM.clearResults()
                     },
+                    onTrackRemoved = recVM::onTrackRemoved,
                     onInputModeChanged = recVM::onInputModeChanged,
                     onArtistAdded = recVM::onArtistAdded,
                     onArtistRemoved = recVM::onArtistRemoved,

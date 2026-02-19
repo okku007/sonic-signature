@@ -32,6 +32,7 @@ fun HomeScreen(
         recommendationState: RecommendationUiState,
         onQueryChanged: (String) -> Unit,
         onTrackSelected: (SongMetadata) -> Unit,
+        onTrackRemoved: (SongMetadata) -> Unit,
         onInputModeChanged: (InputMode) -> Unit,
         onArtistAdded: (String) -> Unit,
         onArtistRemoved: (String) -> Unit,
@@ -91,7 +92,8 @@ fun HomeScreen(
                                     searchState = searchState,
                                     onQueryChanged = onQueryChanged,
                                     onTrackSelected = onTrackSelected,
-                                    selectedTrack = recommendationState.selectedTrack
+                                    onTrackRemoved = onTrackRemoved,
+                                    selectedTracks = recommendationState.selectedTracks
                             )
                     InputMode.ARTIST ->
                             ArtistSearchTab(
@@ -191,12 +193,14 @@ fun HomeScreen(
 
 // ── Song Search Tab ────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SongSearchTab(
         searchState: SearchUiState,
         onQueryChanged: (String) -> Unit,
         onTrackSelected: (SongMetadata) -> Unit,
-        selectedTrack: SongMetadata?
+        onTrackRemoved: (SongMetadata) -> Unit,
+        selectedTracks: List<SongMetadata>
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         OutlinedTextField(
@@ -216,11 +220,34 @@ private fun SongSearchTab(
                 singleLine = true
         )
 
-        selectedTrack?.let { track ->
+        // Selected songs as removable chips
+        if (selectedTracks.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
-            SuggestionChip(onClick = {}, label = { Text("${track.name} — ${track.artist}") })
+            FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                selectedTracks.forEach { track ->
+                    InputChip(
+                            selected = true,
+                            onClick = {},
+                            label = { Text("${track.name} — ${track.artist}") },
+                            trailingIcon = {
+                                Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = "Remove ${track.name}",
+                                        modifier =
+                                                Modifier.size(16.dp).clickable {
+                                                    onTrackRemoved(track)
+                                                }
+                                )
+                            }
+                    )
+                }
+            }
         }
 
+        // Search results dropdown
         if (searchState.results.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
             Card(modifier = Modifier.fillMaxWidth()) {
