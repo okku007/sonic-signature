@@ -27,6 +27,8 @@ fun SettingsScreen(
         onBack: () -> Unit,
         onSave: (provider: LLMClientFactory.Provider, apiKey: String, modelId: String) -> Unit,
         onValidate: (provider: LLMClientFactory.Provider, apiKey: String, modelId: String) -> Unit,
+        onSaveLastFmKey: (String) -> Unit,
+        onValidateLastFmKey: (String) -> Unit,
         onClearAll: () -> Unit
 ) {
         var selectedProvider by remember {
@@ -36,6 +38,10 @@ fun SettingsScreen(
         var apiKeyVisible by remember { mutableStateOf(false) }
         var openRouterModelId by remember { mutableStateOf(state.openRouterModelId) }
         var showClearDialog by remember { mutableStateOf(false) }
+
+        // Last.fm key state
+        var lastFmKey by remember { mutableStateOf("") }
+        var lastFmKeyVisible by remember { mutableStateOf(false) }
 
         Scaffold(
                 topBar = {
@@ -60,6 +66,163 @@ fun SettingsScreen(
                                         .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
+                        // ── Music Data (Last.fm) ─────────────────────────────────────────
+                        Text("Music Data", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                                "Free — get yours at last.fm/api/account/create",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        OutlinedTextField(
+                                value = lastFmKey,
+                                onValueChange = { lastFmKey = it },
+                                label = { Text("Last.fm API Key") },
+                                placeholder = {
+                                        Text(
+                                                if (state.lastFmKeyMasked.isNotEmpty())
+                                                        state.lastFmKeyMasked
+                                                else "Enter your Last.fm API key"
+                                        )
+                                },
+                                visualTransformation =
+                                        if (lastFmKeyVisible) VisualTransformation.None
+                                        else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                        IconButton(
+                                                onClick = { lastFmKeyVisible = !lastFmKeyVisible }
+                                        ) {
+                                                Icon(
+                                                        if (lastFmKeyVisible)
+                                                                Icons.Default.VisibilityOff
+                                                        else Icons.Default.Visibility,
+                                                        contentDescription =
+                                                                if (lastFmKeyVisible) "Hide key"
+                                                                else "Show key"
+                                                )
+                                        }
+                                },
+                                keyboardOptions =
+                                        KeyboardOptions(keyboardType = KeyboardType.Password),
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true
+                        )
+
+                        // ── Last.fm validation status ────────────────────────────────────
+                        when {
+                                state.isValidatingLastFm ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                CircularProgressIndicator(
+                                                        modifier = Modifier.size(14.dp),
+                                                        strokeWidth = 2.dp,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                )
+                                                Spacer(Modifier.width(8.dp))
+                                                Text(
+                                                        "Validating Last.fm key…",
+                                                        color =
+                                                                MaterialTheme.colorScheme
+                                                                        .onSurfaceVariant,
+                                                        style = MaterialTheme.typography.bodySmall
+                                                )
+                                        }
+                                state.lastFmValidationSuccess == true -> {
+                                        Card(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                colors =
+                                                        CardDefaults.cardColors(
+                                                                containerColor =
+                                                                        MaterialTheme.colorScheme
+                                                                                .primaryContainer
+                                                        )
+                                        ) {
+                                                Row(
+                                                        modifier = Modifier.padding(12.dp),
+                                                        verticalAlignment =
+                                                                Alignment.CenterVertically
+                                                ) {
+                                                        Icon(
+                                                                Icons.Default.CheckCircle,
+                                                                contentDescription = null,
+                                                                tint =
+                                                                        MaterialTheme.colorScheme
+                                                                                .primary,
+                                                                modifier = Modifier.size(20.dp)
+                                                        )
+                                                        Spacer(Modifier.width(8.dp))
+                                                        Text(
+                                                                "Last.fm key validated & saved",
+                                                                style =
+                                                                        MaterialTheme.typography
+                                                                                .bodyMedium,
+                                                                color =
+                                                                        MaterialTheme.colorScheme
+                                                                                .onPrimaryContainer
+                                                        )
+                                                }
+                                        }
+                                        LaunchedEffect(Unit) { lastFmKey = "" }
+                                }
+                                state.lastFmValidationSuccess == false ->
+                                        Card(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                colors =
+                                                        CardDefaults.cardColors(
+                                                                containerColor =
+                                                                        MaterialTheme.colorScheme
+                                                                                .errorContainer
+                                                        )
+                                        ) {
+                                                Text(
+                                                        state.lastFmError ?: "Validation failed",
+                                                        modifier = Modifier.padding(12.dp),
+                                                        color =
+                                                                MaterialTheme.colorScheme
+                                                                        .onErrorContainer,
+                                                        style = MaterialTheme.typography.bodySmall
+                                                )
+                                        }
+                                state.lastFmKeyMasked.isNotEmpty() ->
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Icon(
+                                                        Icons.Default.CheckCircle,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.primary,
+                                                        modifier = Modifier.size(14.dp)
+                                                )
+                                                Spacer(Modifier.width(6.dp))
+                                                Text(
+                                                        "Key saved: ${state.lastFmKeyMasked}",
+                                                        color =
+                                                                MaterialTheme.colorScheme
+                                                                        .onSurfaceVariant,
+                                                        style = MaterialTheme.typography.bodySmall
+                                                )
+                                        }
+                        }
+
+                        // ── Last.fm Validate & Save ──────────────────────────────────────
+                        Button(
+                                onClick = {
+                                        if (lastFmKey.isNotBlank()) {
+                                                onValidateLastFmKey(lastFmKey)
+                                        }
+                                },
+                                enabled = lastFmKey.isNotBlank() && !state.isValidatingLastFm,
+                                modifier = Modifier.fillMaxWidth()
+                        ) {
+                                if (state.isValidatingLastFm) {
+                                        CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                strokeWidth = 2.dp
+                                        )
+                                        Spacer(Modifier.width(8.dp))
+                                }
+                                Text("Validate & Save Last.fm Key")
+                        }
+
+                        HorizontalDivider()
+
                         // ── LLM Provider ─────────────────────────────────────────────────
                         Text("AI Provider", style = MaterialTheme.typography.titleMedium)
 
@@ -306,7 +469,7 @@ fun SettingsScreen(
                         title = { Text("Clear All Data?") },
                         text = {
                                 Text(
-                                        "This will delete all stored API keys from this device. This cannot be undone."
+                                        "This will delete all stored API keys (Last.fm and AI provider) from this device. This cannot be undone."
                                 )
                         },
                         confirmButton = {

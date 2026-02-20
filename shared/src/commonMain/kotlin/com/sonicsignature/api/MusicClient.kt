@@ -10,11 +10,13 @@ import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+private const val LASTFM_API_BASE = "https://ws.audioscrobbler.com/2.0/"
+
 /**
- * Music metadata client that routes all requests through the project backend (which proxies
- * Last.fm). Constitution §3.1: Music data used as metadata only, never for ML training.
+ * Music metadata client that calls the Last.fm API directly using the user's own API key. No
+ * backend proxy — all requests go straight from the device to Last.fm.
  */
-class MusicClient(private val httpClient: HttpClient) {
+class MusicClient(private val httpClient: HttpClient, private val lastFmApiKey: String) {
 
     // ── Internal Last.fm response shapes ──────────────────────────────────────
 
@@ -46,14 +48,21 @@ class MusicClient(private val httpClient: HttpClient) {
     // ── Public API ─────────────────────────────────────────────────────────────
 
     /**
-     * Search for tracks matching [query]. Returns up to [limit] results. Calls are routed through
-     * the backend proxy.
+     * Search for tracks matching [query]. Returns up to [limit] results. Calls the Last.fm API
+     * directly with the user's API key.
      */
     suspend fun searchTracks(query: String, limit: Int = 10): Result<List<SongMetadata>> {
+        if (lastFmApiKey.isBlank()) {
+            return Result.Error("Set up your Last.fm API key in Settings to search songs.")
+        }
+
         return try {
             val response =
-                    httpClient.get("${BackendConfig.baseUrl}/api/music/search") {
-                        parameter("q", query)
+                    httpClient.get(LASTFM_API_BASE) {
+                        parameter("method", "track.search")
+                        parameter("track", query)
+                        parameter("api_key", lastFmApiKey)
+                        parameter("format", "json")
                         parameter("limit", limit)
                     }
 
@@ -76,11 +85,18 @@ class MusicClient(private val httpClient: HttpClient) {
      * style (e.g. "alternative rock", "melancholic", "90s").
      */
     suspend fun getTrackTags(artist: String, track: String): Result<TrackTags> {
+        if (lastFmApiKey.isBlank()) {
+            return Result.Success(TrackTags(tags = emptyList()))
+        }
+
         return try {
             val response =
-                    httpClient.get("${BackendConfig.baseUrl}/api/music/tags") {
+                    httpClient.get(LASTFM_API_BASE) {
+                        parameter("method", "track.getTopTags")
                         parameter("artist", artist)
                         parameter("track", track)
+                        parameter("api_key", lastFmApiKey)
+                        parameter("format", "json")
                     }
 
             if (!response.status.isSuccess()) {

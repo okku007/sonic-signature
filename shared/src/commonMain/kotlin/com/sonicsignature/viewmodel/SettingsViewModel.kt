@@ -6,6 +6,8 @@ import com.sonicsignature.api.OpenRouterProvider
 import com.sonicsignature.storage.SecureVault
 import com.sonicsignature.storage.VaultKeys
 import io.ktor.client.*
+import io.ktor.client.request.*
+import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +19,12 @@ data class SettingsUiState(
         val openRouterModelId: String = "",
         val isValidating: Boolean = false,
         val validationSuccess: Boolean? = null, // null = not yet validated
-        val error: String? = null
+        val error: String? = null,
+        // Last.fm key state
+        val lastFmKeyMasked: String = "",
+        val isValidatingLastFm: Boolean = false,
+        val lastFmValidationSuccess: Boolean? = null,
+        val lastFmError: String? = null
 )
 
 /**
@@ -42,13 +49,15 @@ class SettingsViewModel(
                 providerName?.let {
                     runCatching { LLMClientFactory.Provider.valueOf(it) }.getOrNull()
                 }
-        val hasKey = vault.load(VaultKeys.LLM_API_KEY) != null
+        val hasLlmKey = vault.load(VaultKeys.LLM_API_KEY) != null
+        val hasLastFmKey = vault.load(VaultKeys.LASTFM_API_KEY) != null
 
         _state.value =
                 SettingsUiState(
                         llmProvider = provider,
-                        apiKeyMasked = if (hasKey) "••••••••••••" else "",
-                        openRouterModelId = vault.load(VaultKeys.OPENROUTER_MODEL_ID) ?: ""
+                        apiKeyMasked = if (hasLlmKey) "••••••••••••" else "",
+                        openRouterModelId = vault.load(VaultKeys.OPENROUTER_MODEL_ID) ?: "",
+                        lastFmKeyMasked = if (hasLastFmKey) "••••••••••••" else ""
                 )
     }
 
@@ -63,6 +72,64 @@ class SettingsViewModel(
 
         loadCurrentSettings()
     }
+
+    // ── Last.fm key management ────────────────────────────────────────────────
+
+    fun saveLastFmKey(key: String) {
+        if (key.isNotBlank()) vault.save(VaultKeys.LASTFM_API_KEY, key)
+        loadCurrentSettings()
+    }
+
+    fun validateLastFmKey(key: String) {
+        _state.value =
+                _state.value.copy(
+                        isValidatingLastFm = true,
+                        lastFmValidationSuccess = null,
+                        lastFmError = null
+                )
+
+        scope.launch {
+            try {
+                val response =
+                        httpClient.get("https://ws.audioscrobbler.com/2.0/") {
+                            parameter("method", "track.search")
+                            parameter("track", "test")
+                            parameter("api_key", key)
+                            parameter("format", "json")
+                            parameter("limit", 1)
+                        }
+
+                if (response.status.isSuccess()) {
+                    // Save key on successful validation
+                    vault.save(VaultKeys.LASTFM_API_KEY, key)
+                    loadCurrentSettings()
+                    _state.value =
+                            _state.value.copy(
+                                    isValidatingLastFm = false,
+                                    lastFmValidationSuccess = true
+                            )
+                } else {
+                    _state.value =
+                            _state.value.copy(
+                                    isValidatingLastFm = false,
+                                    lastFmValidationSuccess = false,
+                                    lastFmError =
+                                            "Invalid API key. Check your key at last.fm/api/account/create"
+                            )
+                }
+            } catch (e: Exception) {
+                _state.value =
+                        _state.value.copy(
+                                isValidatingLastFm = false,
+                                lastFmValidationSuccess = false,
+                                lastFmError = e.message
+                                                ?: "Validation failed. Check your network connection."
+                        )
+            }
+        }
+    }
+
+    // ── LLM key management ────────────────────────────────────────────────────
 
     private fun saveOrClear(key: String, value: String) {
         if (value.isNotBlank()) vault.save(key, value) else vault.delete(key)
@@ -100,7 +167,9 @@ class SettingsViewModel(
 
     fun clearAllData() {
         VaultKeys.run {
-            listOf(LLM_PROVIDER, LLM_API_KEY, OPENROUTER_MODEL_ID).forEach { vault.delete(it) }
+            listOf(LLM_PROVIDER, LLM_API_KEY, OPENROUTER_MODEL_ID, LASTFM_API_KEY).forEach {
+                vault.delete(it)
+            }
         }
         _state.value = SettingsUiState()
     }

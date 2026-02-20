@@ -8,4 +8,5 @@ object VaultKeys {
     const val LLM_PROVIDER = "llm_provider"
     const val LLM_API_KEY = "llm_api_key"
     const val OPENROUTER_MODEL_ID = "openrouter_model_id"
+    const val LASTFM_API_KEY = "lastfm_api_key"
 }

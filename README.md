@@ -4,25 +4,25 @@ IEM recommendation app. You search for songs you enjoy, add them to a listening 
 
 ## Architecture
 
-Kotlin Multiplatform. Four Gradle modules:
+Kotlin Multiplatform. Three active modules:
 
 ```mermaid
 graph LR
     A[androidApp] --> S[shared]
     D[desktopApp] --> S
-    S -->|HTTP| B[backend]
-    B -->|Last.fm API| L[last.fm]
+    S -->|Direct API| L[Last.fm]
     S -->|LLM API| G[Gemini / OpenRouter]
 ```
 
 - **shared** — ViewModels, API clients, recommendation engine. Common code for all platforms.
 - **androidApp** — Compose UI targeting Android.
 - **desktopApp** — Compose Desktop (JVM).
-- **backend** — Ktor server. Proxies Last.fm API requests and keeps the API key server-side.
+
+> **Note:** The `backend/` module is deprecated. The app now calls the Last.fm API directly using the user's own API key — no backend server required.
 
 ### Data Flow
 
-1. **User searches** for songs → `MusicClient` calls backend → backend queries Last.fm `track.search`
+1. **User searches** for songs → `MusicClient` calls Last.fm `track.search` directly
 2. **User selects** one or more songs → displayed as removable chips
 3. **User taps "Find My IEM"** → `RecommendationEngine` fetches Last.fm tags for each song → builds a combined prompt → calls the LLM
 4. **LLM returns** 3 IEM recommendations as structured JSON → parsed and displayed
@@ -37,46 +37,32 @@ graph LR
 ## Setup
 
 1. Clone the repo.
+2. Open the app → Settings → enter your **Last.fm API key** and **LLM API key**.
 
-2. Create `backend/.env`:
-```
-LASTFM_API_KEY=your_lastfm_api_key
-```
+That's it — no backend server to run.
 
 ## Running
 
-Start the backend first, then the app.
-
-**Backend:**
-```bash
-./gradlew :backend:run
-```
-
-**Android (emulator):**
+**Android (emulator or physical device):**
 ```bash
 ./gradlew :androidApp:installDebug
 ```
-Default backend URL points to `10.0.2.2:8080` (emulator alias for host localhost).
-
-**Android (physical device):**
-
-Set your machine's local IP in `AppNavGraph.kt`:
-```kotlin
-BackendConfig.baseUrl = "http://<YOUR_LOCAL_IP>:8080"
-```
-Phone and computer must be on the same network.
 
 **Desktop:**
 ```bash
 ./gradlew :desktopApp:run
 ```
-Backend URL is set to `localhost:8080` automatically.
 
 ## Configuration
 
-Open the app → Settings → select your LLM provider (Gemini or OpenRouter) → enter your API key. Keys are stored in platform-specific secure storage (Android Keystore / encrypted preferences on desktop).
+Open the app → Settings:
+1. **Music Data** — enter your Last.fm API key (free). Keys are validated before saving.
+2. **AI Provider** — select Gemini or OpenRouter, enter your API key.
 
-Last.fm API key lives exclusively in `backend/.env`. The app has no knowledge of it.
+All keys are stored in platform-specific secure storage:
+- **Android**: EncryptedSharedPreferences (AES-256-GCM, hardware-backed KeyStore)
+- **iOS**: Apple Keychain (Secure Enclave)
+- **Desktop**: AES-256-GCM encrypted JVM Preferences (key stored at `~/.sonic-signature/vault.key`)
 
 ### Budget Tiers
 
@@ -95,21 +81,20 @@ Last.fm API key lives exclusively in `backend/.env`. The app has no knowledge of
 | **Artist** | Type artist names as chips → LLM infers sonic characteristics |
 | **Genre/Mood** | Free-text description → LLM recommends based on described preferences |
 
+### Graceful Degradation
+
+Without a Last.fm API key, **Song search is disabled** but:
+- **Artist mode** still works (LLM-only)
+- **Genre/Mood mode** still works (LLM-only)
+
 ## Project Structure
 
 ```
 sonic-signature/
-  backend/
-    .env                              # Last.fm API key (gitignored)
-    src/main/kotlin/.../
-      Application.kt                 # Ktor entry point
-      service/LastFmService.kt        # Reads LASTFM_API_KEY from .env
-      routes/LastFmProxyRoutes.kt     # /api/music/search, /api/music/tags
   shared/
     src/commonMain/kotlin/.../
       api/
-        MusicClient.kt               # Last.fm search + tags via backend proxy
-        BackendConfig.kt              # Backend URL configuration
+        MusicClient.kt               # Direct Last.fm search + tags (user's own key)
         LLMClientFactory.kt           # Creates Gemini/OpenRouter providers
         GeminiProvider.kt             # Gemini API client
         OpenRouterProvider.kt         # OpenRouter API client
@@ -125,10 +110,11 @@ sonic-signature/
       viewmodel/
         SearchViewModel.kt            # Debounced song search
         RecommendationViewModel.kt    # Multi-song selection, input modes, results
-        SettingsViewModel.kt          # LLM provider configuration
+        SettingsViewModel.kt          # LLM + Last.fm key configuration
       storage/
         SecureVault.kt                # expect/actual secure key storage
+        VaultKeys.kt                  # Key constants (LLM, Last.fm, model ID)
   androidApp/                         # Compose UI + navigation
   desktopApp/                         # Compose Desktop window
+  backend/                            # [DEPRECATED] No longer required
 ```
-

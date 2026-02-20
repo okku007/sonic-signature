@@ -8,6 +8,7 @@ import com.sonicsignature.android.ui.screens.*
 import com.sonicsignature.api.*
 import com.sonicsignature.engine.RecommendationEngine
 import com.sonicsignature.storage.SecureVault
+import com.sonicsignature.storage.VaultKeys
 import com.sonicsignature.viewmodel.*
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -34,20 +35,21 @@ fun MainWindow() {
             }
         }
     }
-    val musicClient = remember { MusicClient(httpClient) }
-    val llmFactory = remember { LLMClientFactory(httpClient, vault) }
-    val engine = remember { RecommendationEngine(musicClient, llmFactory) }
 
-    // Desktop uses localhost directly
-    LaunchedEffect(Unit) { BackendConfig.baseUrl = "http://localhost:8080" }
-
-    val searchVM = remember { SearchViewModel(musicClient) }
-    val recVM = remember { RecommendationViewModel(engine) }
     val settingsVM = remember { SettingsViewModel(vault, httpClient) }
+    val settingsState by settingsVM.state.collectAsState()
+
+    // Read Last.fm key from vault → pass to MusicClient
+    val lastFmKey = vault.load(VaultKeys.LASTFM_API_KEY) ?: ""
+    val musicClient = remember(lastFmKey) { MusicClient(httpClient, lastFmKey) }
+    val llmFactory = remember { LLMClientFactory(httpClient, vault) }
+    val engine = remember(lastFmKey) { RecommendationEngine(musicClient, llmFactory) }
+
+    val searchVM = remember(lastFmKey) { SearchViewModel(musicClient) }
+    val recVM = remember(lastFmKey) { RecommendationViewModel(engine) }
 
     val searchState by searchVM.state.collectAsState()
     val recState by recVM.state.collectAsState()
-    val settingsState by settingsVM.state.collectAsState()
 
     val hasApiKey = settingsState.apiKeyMasked.isNotEmpty()
 
@@ -65,6 +67,8 @@ fun MainWindow() {
                     onValidate = { provider, key, modelId ->
                         settingsVM.validateApiKey(provider, key, modelId)
                     },
+                    onSaveLastFmKey = settingsVM::saveLastFmKey,
+                    onValidateLastFmKey = settingsVM::validateLastFmKey,
                     onClearAll = settingsVM::clearAllData
             )
         } else {

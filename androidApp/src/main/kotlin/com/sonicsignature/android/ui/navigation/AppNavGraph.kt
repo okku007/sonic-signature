@@ -8,6 +8,7 @@ import com.sonicsignature.android.ui.screens.*
 import com.sonicsignature.api.*
 import com.sonicsignature.engine.RecommendationEngine
 import com.sonicsignature.storage.SecureVault
+import com.sonicsignature.storage.VaultKeys
 import com.sonicsignature.viewmodel.*
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -27,8 +28,6 @@ fun AppNavGraph() {
     val navController = rememberNavController()
 
     // ── Dependency wiring ────────────────────────────────────────────────────
-    // For physical device testing, uncomment and set your machine's local IP:
-    BackendConfig.baseUrl = "http://192.168.3.250:8080"
     val vault = remember { SecureVault() }
     val httpClient = remember {
         HttpClient {
@@ -42,19 +41,24 @@ fun AppNavGraph() {
             }
         }
     }
-    val musicClient = remember { MusicClient(httpClient) }
-    val llmFactory = remember { LLMClientFactory(httpClient, vault) }
-    val engine = remember { RecommendationEngine(musicClient, llmFactory) }
 
-    val searchVM = remember { SearchViewModel(musicClient) }
-    val recVM = remember { RecommendationViewModel(engine) }
     val settingsVM = remember { SettingsViewModel(vault, httpClient) }
+    val settingsState by settingsVM.state.collectAsState()
+
+    // Read Last.fm key from vault → pass to MusicClient
+    val lastFmKey = vault.load(VaultKeys.LASTFM_API_KEY) ?: ""
+    val musicClient = remember(lastFmKey) { MusicClient(httpClient, lastFmKey) }
+    val llmFactory = remember { LLMClientFactory(httpClient, vault) }
+    val engine = remember(lastFmKey) { RecommendationEngine(musicClient, llmFactory) }
+
+    val searchVM = remember(lastFmKey) { SearchViewModel(musicClient) }
+    val recVM = remember(lastFmKey) { RecommendationViewModel(engine) }
 
     val searchState by searchVM.state.collectAsState()
     val recState by recVM.state.collectAsState()
-    val settingsState by settingsVM.state.collectAsState()
 
     val hasApiKey = settingsState.apiKeyMasked.isNotEmpty()
+    val hasLastFmKey = settingsState.lastFmKeyMasked.isNotEmpty()
 
     NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
@@ -118,6 +122,8 @@ fun AppNavGraph() {
                     onValidate = { provider, key, modelId ->
                         settingsVM.validateApiKey(provider, key, modelId)
                     },
+                    onSaveLastFmKey = settingsVM::saveLastFmKey,
+                    onValidateLastFmKey = settingsVM::validateLastFmKey,
                     onClearAll = settingsVM::clearAllData
             )
         }
