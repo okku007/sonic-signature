@@ -24,15 +24,15 @@ jobs:
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout repository
-        # actions/checkout v4.2.2 — pinned to full SHA (supply-chain safety)
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        # actions/checkout v4 — SHA verified via GitHub API
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           fetch-depth: 0   # Full history needed for changelog generation
 
       # ── 2. Java / JDK ────────────────────────────────────────────────────────
       - name: Set up JDK 17
-        # actions/setup-java v4.7.0 — pinned to full SHA
-        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5388afe05a
+        # actions/setup-java v4 — SHA verified via GitHub API
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9
         with:
           distribution: 'temurin'
           java-version: '17'
@@ -49,8 +49,8 @@ jobs:
       # Must run BEFORE the keystore is decoded — we don't want a tampered
       # wrapper stealing signing credentials.
       - name: Validate Gradle wrapper
-        # gradle/actions/wrapper-validation v4.3.0 — pinned to full SHA
-        uses: gradle/actions/wrapper-validation@06832c7b30a0129d7fb559bcc6e43d26f6374244
+        # gradle/actions/wrapper-validation v4 — SHA verified via GitHub API
+        uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a
 
       # ── 5. Decode & write keystore from secret ────────────────────────────────
       # Secret is passed as an OS env var — never interpolated into shell script text.
@@ -123,8 +123,8 @@ jobs:
 
       # ── 10. Create GitHub Release & upload APKs ───────────────────────────────
       - name: Create GitHub Release
-        # softprops/action-gh-release v2.3.0 — pinned to full SHA
-        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda
+        # softprops/action-gh-release v2 — SHA verified via GitHub API
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
         with:
           tag_name: ${{ github.ref_name }}
           name: "Release ${{ github.ref_name }}"
