@@ -1,11 +1,14 @@
 package com.sonicsignature.android.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
@@ -13,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -27,10 +31,10 @@ fun SettingsScreen(
         onBack: () -> Unit,
         onSave: (provider: LLMClientFactory.Provider, apiKey: String, modelId: String) -> Unit,
         onValidate: (provider: LLMClientFactory.Provider, apiKey: String, modelId: String) -> Unit,
-        onSaveLastFmKey: (String) -> Unit,
         onValidateLastFmKey: (String) -> Unit,
         onClearAll: () -> Unit
 ) {
+        val context = LocalContext.current
         var selectedProvider by remember {
                 mutableStateOf(state.llmProvider ?: LLMClientFactory.Provider.GEMINI)
         }
@@ -66,6 +70,31 @@ fun SettingsScreen(
                                         .padding(16.dp),
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                 ) {
+                        // ── Setup Guide ──────────────────────────────────────────────────
+                        OutlinedButton(
+                                onClick = {
+                                        val intent =
+                                                Intent(
+                                                        Intent.ACTION_VIEW,
+                                                        Uri.parse(
+                                                                "https://github.com/okku007/sonic-signature/blob/main/SETUP.md"
+                                                        )
+                                                )
+                                        context.startActivity(intent)
+                                },
+                                modifier = Modifier.fillMaxWidth()
+                        ) {
+                                Icon(
+                                        Icons.AutoMirrored.Filled.OpenInNew,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("Get API Keys Guide")
+                        }
+
+                        HorizontalDivider()
+
                         // ── Music Data (Last.fm) ─────────────────────────────────────────
                         Text("Music Data", style = MaterialTheme.typography.titleMedium)
                         Text(
@@ -465,7 +494,6 @@ fun SettingsScreen(
         if (showClearDialog) {
                 AlertDialog(
                         onDismissRequest = { showClearDialog = false },
-                        modifier = Modifier,
                         title = { Text("Clear All Data?") },
                         text = {
                                 Text(

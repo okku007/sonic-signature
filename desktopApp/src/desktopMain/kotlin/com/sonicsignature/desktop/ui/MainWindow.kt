@@ -67,7 +67,6 @@ fun MainWindow() {
                     onValidate = { provider, key, modelId ->
                         settingsVM.validateApiKey(provider, key, modelId)
                     },
-                    onSaveLastFmKey = settingsVM::saveLastFmKey,
                     onValidateLastFmKey = settingsVM::validateLastFmKey,
                     onClearAll = settingsVM::clearAllData
             )
