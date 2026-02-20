@@ -1,0 +1,141 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+# Ensure only one release job runs at a time per tag
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-release:
+    name: Build & Publish Release
+    # Pinned runner — avoids silent breakage when ubuntu-latest changes OS version
+    runs-on: ubuntu-22.04
+    # Prevent hung builds from holding secrets in a live runner for hours
+    timeout-minutes: 30
+
+    permissions:
+      contents: write   # Required to create a GitHub Release and upload assets
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
+      - name: Checkout repository
+        # actions/checkout v4.2.2 — pinned to full SHA (supply-chain safety)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0   # Full history needed for changelog generation
+
+      # ── 2. Java / JDK ────────────────────────────────────────────────────────
+      - name: Set up JDK 17
+        # actions/setup-java v4.7.0 — pinned to full SHA
+        uses: actions/setup-java@3a4f6e1af504cf6a31855fa899c6aa5388afe05a
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      # ── 3. Grant execute permission for gradlew ───────────────────────────────
+      # Done BEFORE keystore is decoded so the file never exists on disk during
+      # any step that doesn't strictly require it.
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      # ── 4. Validate Gradle wrapper integrity ──────────────────────────────────
+      # Verifies gradlew checksum against Gradle's published manifests.
+      # Must run BEFORE the keystore is decoded — we don't want a tampered
+      # wrapper stealing signing credentials.
+      - name: Validate Gradle wrapper
+        # gradle/actions/wrapper-validation v4.3.0 — pinned to full SHA
+        uses: gradle/actions/wrapper-validation@06832c7b30a0129d7fb559bcc6e43d26f6374244
+
+      # ── 5. Decode & write keystore from secret ────────────────────────────────
+      # Secret is passed as an OS env var — never interpolated into shell script text.
+      # Written to /tmp (outside the workspace) to prevent accidental inclusion in
+      # artifact uploads, Gradle config-cache snapshots, or other workspace scans.
+      # Guarded against an empty/unset secret — produces a clear error instead of
+      # a confusing "corrupt keystore" Gradle failure.
+      - name: Decode keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::error::RELEASE_KEYSTORE secret is not set or is empty. Cannot sign the APK."
+            exit 1
+          fi
+          KEYSTORE_FILE=$(mktemp /tmp/release-XXXXXX.keystore)
+          echo "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_FILE"
+          # Export both vars to $GITHUB_ENV so build and cleanup steps can access
+          # them as plain OS env vars — no ${{ env.* }} YAML expression needed.
+          echo "KEYSTORE_FILE=$KEYSTORE_FILE" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PATH=$KEYSTORE_FILE" >> "$GITHUB_ENV"
+
+      # ── 6. Build signed release APK ───────────────────────────────────────────
+      # Secrets are passed as OS-level env vars to Gradle — never in script text.
+      # KEYSTORE_FILE comes from $GITHUB_ENV (set in the decode step above).
+      - name: Build release APK
+        # KEYSTORE_PATH is already in the OS environment via $GITHUB_ENV (set in
+        # the decode step). Only secrets need to be explicitly forwarded here.
+        env:
+          KEY_ALIAS:      ${{ secrets.RELEASE_KEY_ALIAS }}
+          STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          KEY_PASSWORD:   ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: ./gradlew :androidApp:assembleRelease
+
+      # ── 7. Clean up keystore from disk ────────────────────────────────────────
+      # Deleted immediately after build — minimum possible on-disk lifetime.
+      # if: always() ensures cleanup runs even when the build step fails.
+      - name: Remove keystore
+        if: always()
+        run: |
+          if [ -n "$KEYSTORE_FILE" ] && [ -f "$KEYSTORE_FILE" ]; then
+            rm -f "$KEYSTORE_FILE"
+          fi
+
+      # ── 8. Collect APK artifacts ──────────────────────────────────────────────
+      # Fail fast with a clear error if the APK output directory or files are missing.
+      - name: List generated APKs
+        run: find androidApp/build/outputs/apk/release/ -name "*.apk" || exit 1
+
+      # ── 9. Generate changelog from commits since the previous tag ─────────────
+      # Uses a cryptographically random heredoc delimiter to prevent injection:
+      # a commit message containing the exact delimiter on its own line would
+      # otherwise prematurely close the heredoc and inject key=value pairs into
+      # $GITHUB_OUTPUT.
+      - name: Generate changelog
+        id: changelog
+        run: |
+          PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREVIOUS_TAG" ]; then
+            CHANGELOG=$(git log "$PREVIOUS_TAG"..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          DELIMITER="CHANGELOG_$(openssl rand -hex 8)"
+          {
+            echo "content<<$DELIMITER"
+            echo "$CHANGELOG"
+            echo "$DELIMITER"
+          } >> "$GITHUB_OUTPUT"
+
+      # ── 10. Create GitHub Release & upload APKs ───────────────────────────────
+      - name: Create GitHub Release
+        # softprops/action-gh-release v2.3.0 — pinned to full SHA
+        uses: softprops/action-gh-release@c95fe1489396fe8a9eb87c0abf8aa5b2ef267fda
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "Release ${{ github.ref_name }}"
+          body: |
+            ## What's changed in ${{ github.ref_name }}
+
+            ${{ steps.changelog.outputs.content }}
+
+            ---
+            *Generated automatically by GitHub Actions.*
+          files: androidApp/build/outputs/apk/release/*.apk
+          fail_on_unmatched_files: true
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
