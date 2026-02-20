@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Splash / startup theme to avoid white flash before Compose initializes -->
+    <style name="Theme.SonicSignature.Splash" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#0D1B2A</item>
+        <item name="android:statusBarColor">#0D1B2A</item>
+        <item name="android:navigationBarColor">#0D1B2A</item>
+    </style>
+</resources>
