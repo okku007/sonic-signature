@@ -34,6 +34,9 @@ graph LR
 - A **Last.fm API key** — free at https://www.last.fm/api/account/create
 - An **LLM API key** (Gemini or OpenRouter)
 
+→ **[Getting your API keys (SETUP.md)](SETUP.md)**
+
+
 ## Setup
 
 1. Clone the repo.

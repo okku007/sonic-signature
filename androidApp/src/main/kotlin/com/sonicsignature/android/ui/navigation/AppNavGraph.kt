@@ -58,7 +58,6 @@ fun AppNavGraph() {
     val recState by recVM.state.collectAsState()
 
     val hasApiKey = settingsState.apiKeyMasked.isNotEmpty()
-    val hasLastFmKey = settingsState.lastFmKeyMasked.isNotEmpty()
 
     NavHost(navController = navController, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
@@ -122,7 +121,6 @@ fun AppNavGraph() {
                     onValidate = { provider, key, modelId ->
                         settingsVM.validateApiKey(provider, key, modelId)
                     },
-                    onSaveLastFmKey = settingsVM::saveLastFmKey,
                     onValidateLastFmKey = settingsVM::validateLastFmKey,
                     onClearAll = settingsVM::clearAllData
             )
