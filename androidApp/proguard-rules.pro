@@ -2,6 +2,15 @@
 # By default, the flags from the Android Gradle Plugin's built-in
 # proguard-android-optimize.txt are applied.
 
+# ── Error Prone annotations (referenced by Google Tink, not shipped in APK) ──
+# R8 treats missing referenced classes as errors — suppress them.
+-dontwarn com.google.errorprone.annotations.**
+-dontwarn javax.annotation.**
+
+# ── Google Tink ───────────────────────────────────────────────────────────────
+-keep class com.google.crypto.tink.** { *; }
+-dontwarn com.google.crypto.tink.**
+
 # ── Kotlin ────────────────────────────────────────────────────────────────────
 -keep class kotlin.Metadata { *; }
 -dontwarn kotlin.**
