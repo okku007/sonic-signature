@@ -153,6 +153,12 @@ class SettingsViewModel(
                                     )
                         }
                 llmProvider.complete(testPrompt)
+                // Save the key immediately on successful validation so the Home screen
+                // button updates reactively as soon as the user navigates back.
+                vault.save(VaultKeys.LLM_PROVIDER, provider.name)
+                vault.save(VaultKeys.LLM_API_KEY, apiKey)
+                if (modelId.isNotBlank()) vault.save(VaultKeys.OPENROUTER_MODEL_ID, modelId)
+                loadCurrentSettings()
                 _state.value = _state.value.copy(isValidating = false, validationSuccess = true)
             } catch (e: Exception) {
                 _state.value =
