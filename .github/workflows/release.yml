@@ -67,9 +67,10 @@ jobs:
             exit 1
           fi
           KEYSTORE_FILE=$(mktemp /tmp/release-XXXXXX.keystore)
-          echo "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_FILE"
-          # Export both vars to $GITHUB_ENV so build and cleanup steps can access
-          # them as plain OS env vars — no ${{ env.* }} YAML expression needed.
+          # Strip ALL whitespace (spaces, newlines, \r) before decoding.
+          # GitHub Secrets pasted via the UI often contain hidden whitespace that
+          # causes 'base64: invalid input' with GNU coreutils strict mode.
+          echo "$KEYSTORE_B64" | tr -d '[:space:]' | base64 --decode > "$KEYSTORE_FILE"
           echo "KEYSTORE_FILE=$KEYSTORE_FILE" >> "$GITHUB_ENV"
           echo "KEYSTORE_PATH=$KEYSTORE_FILE" >> "$GITHUB_ENV"
 
