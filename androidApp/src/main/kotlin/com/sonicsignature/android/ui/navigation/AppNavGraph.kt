@@ -45,8 +45,14 @@ fun AppNavGraph() {
     val settingsVM = remember { SettingsViewModel(vault, httpClient) }
     val settingsState by settingsVM.state.collectAsState()
 
-    // Read Last.fm key from vault → pass to MusicClient
-    val lastFmKey = vault.load(VaultKeys.LASTFM_API_KEY) ?: ""
+    // Derive lastFmKey reactively from settingsState so MusicClient rebuilds
+    // whenever the user saves a new Last.fm key — vault.load() alone would only
+    // run once on first composition and never update.
+    val hasLastFmKey = settingsState.lastFmKeyMasked.isNotEmpty()
+    val lastFmKey =
+            remember(hasLastFmKey) {
+                if (hasLastFmKey) vault.load(VaultKeys.LASTFM_API_KEY) ?: "" else ""
+            }
     val musicClient = remember(lastFmKey) { MusicClient(httpClient, lastFmKey) }
     val llmFactory = remember { LLMClientFactory(httpClient, vault) }
     val engine = remember(lastFmKey) { RecommendationEngine(musicClient, llmFactory) }
@@ -57,6 +63,8 @@ fun AppNavGraph() {
     val searchState by searchVM.state.collectAsState()
     val recState by recVM.state.collectAsState()
 
+    // hasApiKey is reactive — settingsState updates whenever saveSettings() or
+    // validateApiKey() completes successfully (both call loadCurrentSettings()).
     val hasApiKey = settingsState.apiKeyMasked.isNotEmpty()
 
     NavHost(navController = navController, startDestination = Routes.HOME) {
