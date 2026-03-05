@@ -1,4 +1,4 @@
-package com.sonicsignature.android.ui.screens
+package com.sonicsignature.ui.screens
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,14 +11,16 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.sonicsignature.android.ui.theme.GradeA
-import com.sonicsignature.android.ui.theme.GradeB
-import com.sonicsignature.android.ui.theme.GradeC
-import com.sonicsignature.android.ui.theme.GradeD
 import com.sonicsignature.model.IEMRecommendation
 import kotlinx.coroutines.delay
+
+private val GradeA = Color(0xFF4CAF50)
+private val GradeB = Color(0xFF2196F3)
+private val GradeC = Color(0xFFFF9800)
+private val GradeD = Color(0xFFF44336)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

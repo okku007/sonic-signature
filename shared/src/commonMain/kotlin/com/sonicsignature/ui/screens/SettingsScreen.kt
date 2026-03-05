@@ -1,7 +1,5 @@
-package com.sonicsignature.android.ui.screens
+package com.sonicsignature.ui.screens
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -16,7 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -34,7 +32,7 @@ fun SettingsScreen(
         onValidateLastFmKey: (String) -> Unit,
         onClearAll: () -> Unit
 ) {
-        val context = LocalContext.current
+        val uriHandler = LocalUriHandler.current
         var selectedProvider by remember {
                 mutableStateOf(state.llmProvider ?: LLMClientFactory.Provider.GEMINI)
         }
@@ -74,14 +72,9 @@ fun SettingsScreen(
                         // ── Setup Guide ──────────────────────────────────────────────────
                         OutlinedButton(
                                 onClick = {
-                                        val intent =
-                                                Intent(
-                                                        Intent.ACTION_VIEW,
-                                                        Uri.parse(
-                                                                "https://github.com/okku007/sonic-signature/blob/main/SETUP.md"
-                                                        )
-                                                )
-                                        context.startActivity(intent)
+                                        uriHandler.openUri(
+                                                "https://github.com/okku007/sonic-signature/blob/main/SETUP.md"
+                                        )
                                 },
                                 modifier = Modifier.fillMaxWidth()
                         ) {

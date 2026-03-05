@@ -23,10 +23,14 @@ data class IEMRecommendation(
         val name: String,
         val brand: String,
         val priceINR: Int,
-        val driverType: String, // String for LLM JSON compat; validated on parse
-        val soundSignature: String, // String for LLM JSON compat; validated on parse
+        val driverType: String,
+        val soundSignature: String,
         val crinacleGrade: String? = null,
-        val justification: String
+        val justification: String,
+        val compatibilityScore: Int = 0, // Default for v1 compat
+        val strengths: List<String> = emptyList(),
+        val tradeOffs: List<String> = emptyList(),
+        val tonalCategory: String = ""
 ) {
     fun driverTypeEnum(): DriverType? = runCatching { DriverType.valueOf(driverType) }.getOrNull()
     fun soundSignatureEnum(): SoundSignature? =

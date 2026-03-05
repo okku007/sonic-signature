@@ -2,8 +2,10 @@ package com.sonicsignature.engine
 
 import com.sonicsignature.api.LLMClientFactory
 import com.sonicsignature.api.MusicClient
-import com.sonicsignature.model.BudgetTier
 import com.sonicsignature.model.IEMRecommendation
+import com.sonicsignature.model.SongMetadata
+import com.sonicsignature.model.TuningPreference
+import com.sonicsignature.model.UserSonicProfile
 import com.sonicsignature.util.Result
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -22,8 +24,11 @@ class RecommendationEngine(
          * combined prompt → call LLM → parse response.
          */
         suspend fun recommendFromSongs(
-                songs: List<com.sonicsignature.model.SongMetadata>,
-                budget: BudgetTier
+                songs: List<SongMetadata>,
+                budget: Int,
+                tuningPreference: TuningPreference,
+                customTuning: String,
+                profile: UserSonicProfile
         ): Result<List<IEMRecommendation>> =
                 withContext(Dispatchers.Default) {
                         val provider =
@@ -52,7 +57,14 @@ class RecommendationEngine(
                                         song to tags
                                 }
 
-                        val prompt = PromptBuilder.buildSongPrompt(songsWithTags, budget)
+                        val prompt =
+                                PromptBuilder.buildSongProfilePrompt(
+                                        songsWithTags,
+                                        budget,
+                                        tuningPreference,
+                                        customTuning,
+                                        profile
+                                )
 
                         val llmResponse =
                                 try {
@@ -71,7 +83,9 @@ class RecommendationEngine(
         /** Recommend IEMs based on a list of artist names as a taste profile. */
         suspend fun recommendFromArtists(
                 artists: List<String>,
-                budget: BudgetTier
+                budget: Int,
+                tuningPreference: TuningPreference,
+                customTuning: String
         ): Result<List<IEMRecommendation>> =
                 withContext(Dispatchers.Default) {
                         val provider =
@@ -80,7 +94,13 @@ class RecommendationEngine(
                                                 "Set up your LLM provider in Settings to get started."
                                         )
 
-                        val prompt = PromptBuilder.buildArtistPrompt(artists, budget)
+                        val prompt =
+                                PromptBuilder.buildArtistPrompt(
+                                        artists,
+                                        budget,
+                                        tuningPreference,
+                                        customTuning
+                                )
 
                         val llmResponse =
                                 try {
@@ -99,7 +119,9 @@ class RecommendationEngine(
         /** Recommend IEMs based on a free-text genre or mood description. */
         suspend fun recommendFromGenre(
                 description: String,
-                budget: BudgetTier
+                budget: Int,
+                tuningPreference: TuningPreference,
+                customTuning: String
         ): Result<List<IEMRecommendation>> =
                 withContext(Dispatchers.Default) {
                         val provider =
@@ -108,7 +130,13 @@ class RecommendationEngine(
                                                 "Set up your LLM provider in Settings to get started."
                                         )
 
-                        val prompt = PromptBuilder.buildGenrePrompt(description, budget)
+                        val prompt =
+                                PromptBuilder.buildGenrePrompt(
+                                        description,
+                                        budget,
+                                        tuningPreference,
+                                        customTuning
+                                )
 
                         val llmResponse =
                                 try {

@@ -1,14 +1,19 @@
 package com.sonicsignature.android.ui.navigation
 
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.systemBarsPadding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.sonicsignature.android.ui.screens.*
 import com.sonicsignature.api.*
 import com.sonicsignature.engine.RecommendationEngine
 import com.sonicsignature.storage.SecureVault
 import com.sonicsignature.storage.VaultKeys
+import com.sonicsignature.ui.screens.*
 import com.sonicsignature.viewmodel.*
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -67,71 +72,79 @@ fun AppNavGraph() {
     // validateApiKey() completes successfully (both call loadCurrentSettings()).
     val hasApiKey = settingsState.apiKeyMasked.isNotEmpty()
 
-    NavHost(navController = navController, startDestination = Routes.HOME) {
-        composable(Routes.HOME) {
-            HomeScreen(
-                    searchState = searchState,
-                    recommendationState = recState,
-                    onQueryChanged = searchVM::onQueryChanged,
-                    onTrackSelected = { track ->
-                        recVM.onTrackSelected(track)
-                        searchVM.clearResults()
-                    },
-                    onTrackRemoved = recVM::onTrackRemoved,
-                    onInputModeChanged = recVM::onInputModeChanged,
-                    onArtistAdded = recVM::onArtistAdded,
-                    onArtistRemoved = recVM::onArtistRemoved,
-                    onGenreDescriptionChanged = recVM::onGenreDescriptionChanged,
-                    onBudgetSelected = recVM::onBudgetSelected,
-                    onFindMyIEM = {
-                        recVM.getRecommendations()
-                        navController.navigate(Routes.RESULTS)
-                    },
-                    onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
-                    hasApiKey = hasApiKey
-            )
-        }
-
-        composable(Routes.RESULTS) {
-            ResultsScreen(
-                    recommendations = recState.recommendations,
-                    isLoading = recState.isLoading,
-                    error = recState.error,
-                    onBack = { navController.popBackStack() },
-                    onSearchAgain = {
-                        recVM.clearResults()
-                        navController.popBackStack()
-                    },
-                    onRecommendationClick = { index ->
-                        navController.navigate(Routes.detail(index))
-                    }
-            )
-        }
-
-        composable(Routes.DETAIL) { backStackEntry ->
-            val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
-            val recommendation = recState.recommendations.getOrNull(index)
-            if (recommendation != null) {
-                DetailScreen(
-                        recommendation = recommendation,
-                        onBack = { navController.popBackStack() }
+    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        NavHost(
+                navController = navController,
+                startDestination = Routes.HOME,
+                modifier = Modifier.fillMaxSize().systemBarsPadding()
+        ) {
+            composable(Routes.HOME) {
+                DiscoverScreen(
+                        searchState = searchState,
+                        recommendationState = recState,
+                        onQueryChanged = searchVM::onQueryChanged,
+                        onTrackSelected = { track ->
+                            recVM.onTrackSelected(track)
+                            searchVM.clearResults()
+                        },
+                        onTrackRemoved = recVM::onTrackRemoved,
+                        onInputModeChanged = recVM::onInputModeChanged,
+                        onArtistAdded = recVM::onArtistAdded,
+                        onArtistRemoved = recVM::onArtistRemoved,
+                        onGenreDescriptionChanged = recVM::onGenreDescriptionChanged,
+                        onBudgetSelected = recVM::onBudgetSelected,
+                        onTuningSelected = recVM::onTuningSelected,
+                        onCustomTuningPreferenceChanged = recVM::onCustomTuningPreferenceChanged,
+                        onFindMyIEM = {
+                            recVM.getRecommendations()
+                            navController.navigate(Routes.RESULTS)
+                        },
+                        onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
+                        hasApiKey = hasApiKey
                 )
             }
-        }
 
-        composable(Routes.SETTINGS) {
-            SettingsScreen(
-                    state = settingsState,
-                    onBack = { navController.popBackStack() },
-                    onSave = { provider, key, modelId ->
-                        settingsVM.saveSettings(provider, key, modelId)
-                    },
-                    onValidate = { provider, key, modelId ->
-                        settingsVM.validateApiKey(provider, key, modelId)
-                    },
-                    onValidateLastFmKey = settingsVM::validateLastFmKey,
-                    onClearAll = settingsVM::clearAllData
-            )
+            composable(Routes.RESULTS) {
+                ResultsScreen(
+                        recommendations = recState.recommendations,
+                        isLoading = recState.isLoading,
+                        error = recState.error,
+                        onBack = { navController.popBackStack() },
+                        onSearchAgain = {
+                            recVM.clearResults()
+                            navController.popBackStack()
+                        },
+                        onRecommendationClick = { index ->
+                            navController.navigate(Routes.detail(index))
+                        }
+                )
+            }
+
+            composable(Routes.DETAIL) { backStackEntry ->
+                val index = backStackEntry.arguments?.getString("index")?.toIntOrNull() ?: 0
+                val recommendation = recState.recommendations.getOrNull(index)
+                if (recommendation != null) {
+                    DetailScreen(
+                            recommendation = recommendation,
+                            onBack = { navController.popBackStack() }
+                    )
+                }
+            }
+
+            composable(Routes.SETTINGS) {
+                SettingsScreen(
+                        state = settingsState,
+                        onBack = { navController.popBackStack() },
+                        onSave = { provider, key, modelId ->
+                            settingsVM.saveSettings(provider, key, modelId)
+                        },
+                        onValidate = { provider, key, modelId ->
+                            settingsVM.validateApiKey(provider, key, modelId)
+                        },
+                        onValidateLastFmKey = settingsVM::validateLastFmKey,
+                        onClearAll = settingsVM::clearAllData
+                )
+            }
         }
     }
 }
