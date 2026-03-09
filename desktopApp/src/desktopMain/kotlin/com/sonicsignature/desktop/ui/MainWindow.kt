@@ -4,11 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import com.sonicsignature.android.ui.screens.*
 import com.sonicsignature.api.*
 import com.sonicsignature.engine.RecommendationEngine
 import com.sonicsignature.storage.SecureVault
 import com.sonicsignature.storage.VaultKeys
+import com.sonicsignature.ui.screens.*
 import com.sonicsignature.viewmodel.*
 import io.ktor.client.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -74,7 +74,7 @@ fun MainWindow() {
             Row(modifier = Modifier.fillMaxSize()) {
                 // ── Left Panel (40%) ─────────────────────────────────────────
                 Box(modifier = Modifier.weight(0.4f).fillMaxHeight()) {
-                    HomeScreen(
+                    DiscoverScreen(
                             searchState = searchState,
                             recommendationState = recState,
                             onQueryChanged = searchVM::onQueryChanged,
@@ -88,6 +88,9 @@ fun MainWindow() {
                             onArtistRemoved = recVM::onArtistRemoved,
                             onGenreDescriptionChanged = recVM::onGenreDescriptionChanged,
                             onBudgetSelected = recVM::onBudgetSelected,
+                            onTuningSelected = recVM::onTuningSelected,
+                            onCustomTuningPreferenceChanged =
+                                    recVM::onCustomTuningPreferenceChanged,
                             onFindMyIEM = {
                                 recVM.getRecommendations()
                                 selectedRecommendationIndex = null

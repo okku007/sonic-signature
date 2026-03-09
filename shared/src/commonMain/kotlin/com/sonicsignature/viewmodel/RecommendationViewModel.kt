@@ -1,9 +1,12 @@
 package com.sonicsignature.viewmodel
 
 import com.sonicsignature.engine.RecommendationEngine
-import com.sonicsignature.model.BudgetTier
 import com.sonicsignature.model.IEMRecommendation
+import com.sonicsignature.model.MoodVector
 import com.sonicsignature.model.SongMetadata
+import com.sonicsignature.model.SonicAttributes
+import com.sonicsignature.model.TuningPreference
+import com.sonicsignature.model.UserSonicProfile
 import com.sonicsignature.util.Result
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +24,9 @@ data class RecommendationUiState(
         val selectedTracks: List<SongMetadata> = emptyList(),
         val artistChips: List<String> = emptyList(),
         val genreDescription: String = "",
-        val selectedBudget: BudgetTier = BudgetTier.MID_RANGE,
+        val selectedBudget: Int = 40000,
+        val tuningPreference: TuningPreference = TuningPreference.NEUTRAL,
+        val customTuningPreference: String = "",
         val recommendations: List<IEMRecommendation> = emptyList(),
         val isLoading: Boolean = false,
         val error: String? = null
@@ -69,8 +74,16 @@ class RecommendationViewModel(
         _state.value = _state.value.copy(genreDescription = description, error = null)
     }
 
-    fun onBudgetSelected(tier: BudgetTier) {
-        _state.value = _state.value.copy(selectedBudget = tier)
+    fun onBudgetSelected(budget: Int) {
+        _state.value = _state.value.copy(selectedBudget = budget)
+    }
+
+    fun onTuningSelected(preference: TuningPreference) {
+        _state.value = _state.value.copy(tuningPreference = preference)
+    }
+
+    fun onCustomTuningPreferenceChanged(preference: String) {
+        _state.value = _state.value.copy(customTuningPreference = preference)
     }
 
     fun getRecommendations() {
@@ -91,9 +104,21 @@ class RecommendationViewModel(
                                             )
                                 }
                             }
+                            // Mocking an empty acoustic profile for songs until we fully hook up DB
+                            val mockProfile =
+                                    UserSonicProfile(
+                                            emptyMap(),
+                                            SonicAttributes(0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f),
+                                            emptyList(),
+                                            MoodVector.BALANCED,
+                                            0L
+                                    )
                             engine.recommendFromSongs(
                                     current.selectedTracks,
-                                    current.selectedBudget
+                                    current.selectedBudget,
+                                    current.tuningPreference,
+                                    current.customTuningPreference,
+                                    mockProfile
                             )
                         }
                         InputMode.ARTIST -> {
@@ -106,7 +131,12 @@ class RecommendationViewModel(
                                             )
                                 }
                             }
-                            engine.recommendFromArtists(current.artistChips, current.selectedBudget)
+                            engine.recommendFromArtists(
+                                    current.artistChips,
+                                    current.selectedBudget,
+                                    current.tuningPreference,
+                                    current.customTuningPreference
+                            )
                         }
                         InputMode.GENRE -> {
                             if (current.genreDescription.isBlank()) {
@@ -120,7 +150,9 @@ class RecommendationViewModel(
                             }
                             engine.recommendFromGenre(
                                     current.genreDescription,
-                                    current.selectedBudget
+                                    current.selectedBudget,
+                                    current.tuningPreference,
+                                    current.customTuningPreference
                             )
                         }
                     }

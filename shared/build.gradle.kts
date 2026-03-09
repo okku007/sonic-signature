@@ -5,7 +5,18 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.android.library)
+    alias(libs.plugins.compose.multiplatform)
+    alias(libs.plugins.compose.compiler)
+    // alias(libs.plugins.sqldelight)
 }
+
+// sqldelight {
+//     databases {
+//         create("SonicDatabase") {
+//             packageName.set("com.sonicsignature.database")
+//         }
+//     }
+// }
 
 kotlin {
     androidTarget {
@@ -24,22 +35,49 @@ kotlin {
         }
     }
 
+    @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
+    wasmJs {
+        browser {
+            val projectDirPath = project.projectDir.path
+            commonWebpackConfig {
+                devServer = (devServer ?: org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig.DevServer()).apply {
+                    static = (static ?: mutableListOf()).apply {
+                        // Serve sources to debug inside browser
+                        add(projectDirPath)
+                    }
+                }
+            }
+        }
+        binaries.executable()
+    }
+
     sourceSets {
         val commonMain by getting {
             dependencies {
-                // Ktor
-                implementation(libs.ktor.client.core)
-                implementation(libs.ktor.client.content.negotiation)
-                implementation(libs.ktor.client.auth)
-                implementation(libs.ktor.serialization.kotlinx.json)
+                // Compose
+                implementation(compose.runtime)
+                implementation(compose.foundation)
+                implementation(compose.material3)
+                implementation(compose.ui)
+                implementation(compose.components.resources)
+                implementation(compose.materialIconsExtended)
 
-                // Serialization & Coroutines
-                implementation(libs.kotlinx.serialization.json)
-                implementation(libs.kotlinx.coroutines.core)
+                // Ktor
+                api(libs.ktor.client.core)
+                api(libs.ktor.client.content.negotiation)
+                api(libs.ktor.client.auth)
+                api(libs.ktor.serialization.kotlinx.json)
+
+                // Serialization & Coroutines & DateTime
+                api(libs.kotlinx.serialization.json)
+                api(libs.kotlinx.coroutines.core)
+                api(libs.kotlinx.datetime)
 
                 // Secure Storage
                 implementation(libs.multiplatform.settings)
                 implementation(libs.multiplatform.settings.no.arg)
+
+                // SQLDelight
             }
         }
 
@@ -56,6 +94,7 @@ kotlin {
                 implementation(libs.ktor.client.okhttp)
                 implementation(libs.kotlinx.coroutines.android)
                 implementation(libs.androidx.security.crypto)
+                implementation(libs.sqldelight.android.driver)
             }
         }
 
@@ -63,6 +102,7 @@ kotlin {
             dependsOn(commonMain)
             dependencies {
                 implementation(libs.ktor.client.darwin)
+                implementation(libs.sqldelight.native.driver)
             }
         }
 
@@ -72,6 +112,14 @@ kotlin {
         val desktopMain by getting {
             dependencies {
                 implementation(libs.ktor.client.cio)
+                implementation(libs.sqldelight.sqlite.driver)
+            }
+        }
+        
+        val wasmJsMain by getting {
+            dependencies {
+                // You can add Wasm Ktor client if network requests are made from shared module
+                // For now, Ktor client core is common but wasmJs target might need wasm client engine
             }
         }
     }

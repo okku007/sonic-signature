@@ -1,0 +1,33 @@
+CREATE TABLE IF NOT EXISTS UserProfileEntity (
+    id INTEGER PRIMARY KEY DEFAULT 1,
+    aggregatedTags TEXT NOT NULL,
+    attributes TEXT NOT NULL,
+    dominantGenres TEXT NOT NULL,
+    moodVector TEXT NOT NULL,
+    lastUpdatedEpoch INTEGER NOT NULL
+);
+
+-- We only keep one profile essentially, row id=1
+getProfile:
+SELECT * FROM UserProfileEntity WHERE id = 1;
+
+insertOrReplaceProfile:
+INSERT OR REPLACE INTO UserProfileEntity(id, aggregatedTags, attributes, dominantGenres, moodVector, lastUpdatedEpoch)
+VALUES (1, ?, ?, ?, ?, ?);
+
+CREATE TABLE IF NOT EXISTS SearchHistoryEntity (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    query TEXT NOT NULL,
+    timestamp INTEGER NOT NULL,
+    type TEXT NOT NULL -- 'SONG', 'ARTIST', 'GENRE'
+);
+
+insertSearchHistory:
+INSERT INTO SearchHistoryEntity(query, timestamp, type)
+VALUES (?, ?, ?);
+
+getRecentHistory:
+SELECT * FROM SearchHistoryEntity ORDER BY timestamp DESC LIMIT 20;
+
+clearHistory:
+DELETE FROM SearchHistoryEntity;

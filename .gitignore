@@ -37,3 +37,7 @@ DerivedData/
 *.msi
 *.deb
 *.rpm
+
+# Logs
+*.log
+.kotlin/
