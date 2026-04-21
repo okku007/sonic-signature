@@ -26,8 +26,13 @@ kotlin {
         }
     }
 
-    iosArm64()
-    iosSimulatorArm64()
+    val iosTargets = listOf(iosArm64(), iosSimulatorArm64())
+    iosTargets.forEach { target ->
+        target.binaries.framework {
+            baseName = "Shared"
+            isStatic = true
+        }
+    }
 
     jvm("desktop") {
         compilerOptions {
