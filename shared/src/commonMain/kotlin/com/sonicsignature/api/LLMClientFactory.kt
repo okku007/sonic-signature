@@ -6,9 +6,8 @@ import io.ktor.client.*
 
 /**
  * Reads the user's configured LLM provider from SecureVault and returns
- * the appropriate LLMProvider implementation.
- * Constitution §2.3: Provider-neutral — no default or preferred provider.
- * Constitution §2.4: Returns null if no provider configured (caller shows onboarding).
+ * the active LLMProvider implementation.
+ * Returns null if no supported provider is configured.
  */
 class LLMClientFactory(
     private val httpClient: HttpClient,
@@ -21,13 +20,12 @@ class LLMClientFactory(
         val apiKey = vault.load(VaultKeys.LLM_API_KEY) ?: return null
 
         return when (runCatching { Provider.valueOf(providerName) }.getOrNull()) {
-            Provider.GEMINI -> GeminiProvider(httpClient, apiKey)
             Provider.OPEN_ROUTER -> {
                 val modelId = vault.load(VaultKeys.OPENROUTER_MODEL_ID)
                     ?: "openai/gpt-4o-mini" // Sensible fallback model
                 OpenRouterProvider(httpClient, apiKey, modelId)
             }
-            null -> null
+            Provider.GEMINI, null -> null
         }
     }
 }

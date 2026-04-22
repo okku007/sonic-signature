@@ -1,6 +1,5 @@
 package com.sonicsignature.viewmodel
 
-import com.sonicsignature.api.GeminiProvider
 import com.sonicsignature.api.LLMClientFactory
 import com.sonicsignature.api.OpenRouterProvider
 import com.sonicsignature.storage.SecureVault
@@ -43,13 +42,17 @@ class SettingsViewModel(
         loadCurrentSettings()
     }
 
+    private fun normalizeProvider(providerName: String?): LLMClientFactory.Provider? =
+            when (runCatching { providerName?.let(LLMClientFactory.Provider::valueOf) }.getOrNull()) {
+                LLMClientFactory.Provider.OPEN_ROUTER -> LLMClientFactory.Provider.OPEN_ROUTER
+                LLMClientFactory.Provider.GEMINI, null -> null
+            }
+
     private fun loadCurrentSettings() {
         val providerName = vault.load(VaultKeys.LLM_PROVIDER)
-        val provider =
-                providerName?.let {
-                    runCatching { LLMClientFactory.Provider.valueOf(it) }.getOrNull()
-                }
-        val hasLlmKey = vault.load(VaultKeys.LLM_API_KEY) != null
+        val provider = normalizeProvider(providerName)
+        val hasLlmKey = provider == LLMClientFactory.Provider.OPEN_ROUTER &&
+                vault.load(VaultKeys.LLM_API_KEY) != null
         val hasLastFmKey = vault.load(VaultKeys.LASTFM_API_KEY) != null
 
         _state.value =
@@ -66,8 +69,13 @@ class SettingsViewModel(
             apiKey: String,
             openRouterModelId: String = ""
     ) {
-        vault.save(VaultKeys.LLM_PROVIDER, provider.name)
-        if (apiKey.isNotBlank()) vault.save(VaultKeys.LLM_API_KEY, apiKey)
+        val currentProvider = normalizeProvider(vault.load(VaultKeys.LLM_PROVIDER))
+        vault.save(VaultKeys.LLM_PROVIDER, LLMClientFactory.Provider.OPEN_ROUTER.name)
+        if (apiKey.isNotBlank()) {
+            vault.save(VaultKeys.LLM_API_KEY, apiKey)
+        } else if (currentProvider != LLMClientFactory.Provider.OPEN_ROUTER) {
+            vault.delete(VaultKeys.LLM_API_KEY)
+        }
         saveOrClear(VaultKeys.OPENROUTER_MODEL_ID, openRouterModelId)
 
         loadCurrentSettings()
@@ -143,19 +151,15 @@ class SettingsViewModel(
             try {
                 val testPrompt = "Reply with only the word: OK"
                 val llmProvider =
-                        when (provider) {
-                            LLMClientFactory.Provider.GEMINI -> GeminiProvider(httpClient, apiKey)
-                            LLMClientFactory.Provider.OPEN_ROUTER ->
-                                    OpenRouterProvider(
-                                            httpClient,
-                                            apiKey,
-                                            modelId.ifBlank { "openai/gpt-4o-mini" }
-                                    )
-                        }
+                        OpenRouterProvider(
+                                httpClient,
+                                apiKey,
+                                modelId.ifBlank { "openai/gpt-4o-mini" }
+                        )
                 llmProvider.complete(testPrompt)
                 // Save the key immediately on successful validation so the Home screen
                 // button updates reactively as soon as the user navigates back.
-                vault.save(VaultKeys.LLM_PROVIDER, provider.name)
+                vault.save(VaultKeys.LLM_PROVIDER, LLMClientFactory.Provider.OPEN_ROUTER.name)
                 vault.save(VaultKeys.LLM_API_KEY, apiKey)
                 if (modelId.isNotBlank()) vault.save(VaultKeys.OPENROUTER_MODEL_ID, modelId)
                 loadCurrentSettings()

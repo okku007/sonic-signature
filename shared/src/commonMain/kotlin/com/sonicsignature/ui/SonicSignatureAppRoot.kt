@@ -141,6 +141,7 @@ fun SonicSignatureAppRoot(modifier: Modifier = Modifier) {
                         SettingsScreen(
                             state = settingsState,
                             onBack = { currentRoute = RootRoute.DISCOVER },
+                            onNavigateToDiscover = { currentRoute = RootRoute.DISCOVER },
                             onSave = { provider, key, modelId ->
                                 settingsViewModel.saveSettings(provider, key, modelId)
                             },
