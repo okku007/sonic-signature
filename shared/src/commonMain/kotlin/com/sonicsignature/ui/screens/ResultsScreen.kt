@@ -1,28 +1,40 @@
 package com.sonicsignature.ui.screens
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sonicsignature.model.IEMRecommendation
-import kotlinx.coroutines.delay
+import com.sonicsignature.ui.components.SonicBadge
+import com.sonicsignature.ui.components.SonicContentColumn
+import com.sonicsignature.ui.components.SonicLoadingState
+import com.sonicsignature.ui.components.SonicPanel
+import com.sonicsignature.ui.components.SonicScreenHeader
+import com.sonicsignature.ui.components.SonicSecondaryButton
+import com.sonicsignature.ui.components.SonicTone
 
-private val GradeA = Color(0xFF4CAF50)
-private val GradeB = Color(0xFF2196F3)
-private val GradeC = Color(0xFFFF9800)
-private val GradeD = Color(0xFFF44336)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ResultsScreen(
         recommendations: List<IEMRecommendation>,
@@ -32,113 +44,100 @@ fun ResultsScreen(
         onSearchAgain: () -> Unit,
         onRecommendationClick: (Int) -> Unit
 ) {
-    Scaffold(
-            topBar = {
-                TopAppBar(
-                        title = { Text("Your IEM Matches") },
-                        navigationIcon = {
-                            IconButton(onClick = onBack) {
-                                Icon(
-                                        Icons.AutoMirrored.Filled.ArrowBack,
-                                        contentDescription = "Back"
-                                )
-                            }
-                        },
-                        actions = {
-                            IconButton(onClick = onSearchAgain) {
-                                Icon(Icons.Default.Refresh, contentDescription = "Search again")
-                            }
+    Box(
+            modifier =
+                    Modifier.fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
+                            .padding(horizontal = 24.dp, vertical = 20.dp),
+            contentAlignment = Alignment.TopCenter
+    ) {
+        SonicContentColumn(modifier = Modifier.fillMaxSize()) {
+            SonicScreenHeader(
+                    title = "RECOMMENDED SET",
+                    subtitle =
+                            "Structured recommendation output from the current Sonic Signature engine.",
+                    leading = {
+                        androidx.compose.material3.IconButton(onClick = onBack) {
+                            Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back",
+                                    tint = MaterialTheme.colorScheme.primary
+                            )
                         }
-                )
-            }
-    ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+                    },
+                    trailing = {
+                        SonicSecondaryButton(
+                                text = "Refresh",
+                                onClick = onSearchAgain,
+                                leading = {
+                                    Icon(
+                                            imageVector = Icons.Default.Refresh,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                        )
+                    }
+            )
+
             when {
                 isLoading -> {
-                    Column(
-                            modifier = Modifier.align(Alignment.Center),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                    Box(
+                            modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
+                            contentAlignment = Alignment.TopCenter
                     ) {
-                        CircularProgressIndicator()
-                        Spacer(Modifier.height(16.dp))
-
-                        // Cycle through loading messages
-                        var loadingPhase by remember { mutableStateOf(0) }
-                        val loadingMessages =
-                                listOf(
-                                        "Analyzing audio profile…",
-                                        "Consulting the audiophile oracle…",
-                                        "Filtering by your budget…",
-                                        "Scanning 1,000+ driver configurations…",
-                                        "Evaluating sound signatures…",
-                                        "Checking Crinacle's ranking database…",
-                                        "Synthesizing technical reviews…",
-                                        "Calibrating final matches…",
-                                        "Finding your perfect sonic match…",
-                                        "Almost there…"
-                                )
-
-                        LaunchedEffect(Unit) {
-                            while (true) {
-                                delay(2500)
-                                if (loadingPhase < loadingMessages.lastIndex) {
-                                    loadingPhase++
-                                }
-                            }
-                        }
-
-                        Text(
-                                loadingMessages[loadingPhase],
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        SonicLoadingState(modifier = Modifier.fillMaxWidth())
                     }
                 }
                 error != null -> {
-                    Column(
-                            modifier = Modifier.align(Alignment.Center).padding(32.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    SonicPanel(title = "Run failed", badge = "Retry", emphasized = true) {
                         Text(
-                                error,
-                                style = MaterialTheme.typography.bodyMedium,
+                                text = error,
+                                style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.error
                         )
-                        Spacer(Modifier.height(16.dp))
-                        OutlinedButton(onClick = onSearchAgain) { Text("Try Again") }
+                        SonicSecondaryButton(
+                                text = "Search again",
+                                onClick = onSearchAgain,
+                                modifier = Modifier.fillMaxWidth()
+                        )
                     }
                 }
                 recommendations.isEmpty() -> {
-                    Text(
-                            "No recommendations yet. Go back and search!",
-                            modifier = Modifier.align(Alignment.Center).padding(32.dp),
-                            style = MaterialTheme.typography.bodyMedium
-                    )
+                    SonicPanel(title = "No output", badge = "Idle") {
+                        Text(
+                                text =
+                                        "No recommendations are loaded yet. Return to Discover and initiate a run.",
+                                style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
                 }
                 else -> {
                     LazyColumn(
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        itemsIndexed(recommendations) { index, rec ->
-                            IEMRecommendationCard(
-                                    recommendation = rec,
-                                    onClick = { onRecommendationClick(index) }
+                        itemsIndexed(recommendations) { index, recommendation ->
+                            RecommendationResultCard(
+                                    recommendation = recommendation,
+                                    onOpen = { onRecommendationClick(index) }
                             )
                         }
                         item {
-                            OutlinedButton(
+                            SonicSecondaryButton(
+                                    text = "Search again",
                                     onClick = onSearchAgain,
                                     modifier = Modifier.fillMaxWidth()
-                            ) { Text("Search Again") }
+                            )
                         }
                         item {
-                            Spacer(Modifier.height(8.dp))
                             Text(
-                                    "Prices shown are approximate. Please verify current pricing before purchasing.",
-                                    style = MaterialTheme.typography.labelSmall,
+                                    text =
+                                            "Price, grade, and justification are model-derived summaries. Verify current listings before purchase.",
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                                    modifier = Modifier.padding(bottom = 16.dp)
                             )
                         }
                     }
@@ -149,93 +148,147 @@ fun ResultsScreen(
 }
 
 @Composable
-fun IEMRecommendationCard(recommendation: IEMRecommendation, onClick: () -> Unit) {
-    Card(
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+private fun RecommendationResultCard(recommendation: IEMRecommendation, onOpen: () -> Unit) {
+    val gradeText = safeGrade(recommendation.crinacleGrade)
+    val scoreTone =
+            when {
+                recommendation.compatibilityScore >= 85 -> SonicTone.Success
+                recommendation.compatibilityScore >= 70 -> SonicTone.Accent
+                recommendation.compatibilityScore > 0 -> SonicTone.Warning
+                else -> SonicTone.Neutral
+            }
+
+    SonicPanel(title = recommendation.brand, badge = recommendationCardLabel(recommendation), onClick = onOpen) {
+        Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
             Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.Top
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(recommendation.name, style = MaterialTheme.typography.titleMedium)
+                Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
                     Text(
-                            recommendation.brand,
-                            style = MaterialTheme.typography.bodySmall,
+                            text = recommendation.name,
+                            style = MaterialTheme.typography.headlineMedium
+                    )
+                    Text(
+                            text = "${recommendation.brand}  •  ${recommendation.driverType}",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                recommendation.crinacleGrade?.let { grade -> CrinacleGradeBadge(grade) }
+
+                Spacer(Modifier.width(16.dp))
+
+                Column(
+                        horizontalAlignment = Alignment.End,
+                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    SonicBadge(
+                            text =
+                                    if (recommendation.compatibilityScore > 0) {
+                                        "Match ${recommendation.compatibilityScore}%"
+                                    } else {
+                                        "Match pending"
+                                    },
+                            tone = scoreTone
+                    )
+                    SonicBadge(text = gradeText, tone = gradeTone(gradeText))
+                }
             }
 
-            Spacer(Modifier.height(8.dp))
-
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                    recommendation.driverType,
-                                    style = MaterialTheme.typography.labelSmall
-                            )
-                        }
+            Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+            ) {
+                SonicBadge(text = "₹${recommendation.priceINR}", tone = SonicTone.Neutral)
+                SonicBadge(
+                        text = recommendation.soundSignature.replace('_', ' '),
+                        tone = SonicTone.Accent
                 )
-                AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                    recommendation.soundSignature,
-                                    style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                )
-                AssistChip(
-                        onClick = {},
-                        label = {
-                            Text(
-                                    "₹${recommendation.priceINR}",
-                                    style = MaterialTheme.typography.labelSmall
-                            )
-                        }
-                )
+                SonicBadge(text = recommendation.driverType, tone = SonicTone.Neutral)
             }
 
-            Spacer(Modifier.height(8.dp))
+            Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                MetricColumn(label = "Driver", value = recommendation.driverType)
+                MetricColumn(
+                        label = "Signature",
+                        value = recommendation.soundSignature.replace('_', ' ')
+                )
+                MetricColumn(label = "Price", value = "₹${recommendation.priceINR}")
+            }
+
             Text(
-                    recommendation.justification,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = recommendation.justification,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis
+            )
+
+            SonicSecondaryButton(
+                    text = "Inspect specs",
+                    onClick = onOpen,
+                    modifier = Modifier.fillMaxWidth(),
+                    leading = {
+                        Icon(
+                                imageVector = Icons.Default.Tune,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
             )
         }
     }
 }
 
 @Composable
-fun CrinacleGradeBadge(grade: String) {
-    // Handle explicitly "null" string from LLM or actual null/blank
-    val safeGrade =
-            if (grade.equals("null", ignoreCase = true) || grade.isBlank()) "Unranked" else grade
-
-    val color =
-            when {
-                safeGrade.startsWith("A") -> GradeA
-                safeGrade.startsWith("B") -> GradeB
-                safeGrade.startsWith("C") -> GradeC
-                safeGrade == "Unranked" -> MaterialTheme.colorScheme.onSurfaceVariant
-                else -> GradeD
-            }
-
-    Surface(color = color.copy(alpha = 0.15f), shape = MaterialTheme.shapes.small) {
+private fun MetricColumn(label: String, value: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-                text = safeGrade,
-                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                text = label.uppercase(),
                 style = MaterialTheme.typography.labelMedium,
-                color = color
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Medium
         )
     }
 }
+
+private fun safeGrade(grade: String?): String =
+        if (grade.isNullOrBlank() || grade.equals("null", ignoreCase = true)) {
+            "Unranked"
+        } else {
+            grade
+        }
+
+private fun gradeTone(grade: String): SonicTone =
+        when {
+            grade.startsWith("A") -> SonicTone.Success
+            grade.startsWith("B") -> SonicTone.Accent
+            grade.startsWith("C") -> SonicTone.Warning
+            grade == "Unranked" -> SonicTone.Neutral
+            else -> SonicTone.Danger
+        }
+
+private fun recommendationCardLabel(recommendation: IEMRecommendation): String =
+        buildString {
+            append("₹")
+            append(recommendation.priceINR)
+            if (recommendation.compatibilityScore > 0) {
+                append(" // ")
+                append(recommendation.compatibilityScore)
+                append("%")
+            }
+        }

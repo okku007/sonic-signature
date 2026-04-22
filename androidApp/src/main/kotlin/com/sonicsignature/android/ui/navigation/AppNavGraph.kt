@@ -135,6 +135,12 @@ fun AppNavGraph() {
                 SettingsScreen(
                         state = settingsState,
                         onBack = { navController.popBackStack() },
+                        onNavigateToDiscover = {
+                            navController.navigate(Routes.HOME) {
+                                popUpTo(Routes.HOME) { inclusive = false }
+                                launchSingleTop = true
+                            }
+                        },
                         onSave = { provider, key, modelId ->
                             settingsVM.saveSettings(provider, key, modelId)
                         },

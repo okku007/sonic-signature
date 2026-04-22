@@ -26,8 +26,13 @@ kotlin {
         }
     }
 
-    iosArm64()
-    iosSimulatorArm64()
+    val iosTargets = listOf(iosArm64(), iosSimulatorArm64())
+    iosTargets.forEach { target ->
+        target.binaries.framework {
+            baseName = "Shared"
+            isStatic = true
+        }
+    }
 
     jvm("desktop") {
         compilerOptions {
@@ -93,6 +98,7 @@ kotlin {
             dependencies {
                 implementation(libs.ktor.client.okhttp)
                 implementation(libs.kotlinx.coroutines.android)
+                implementation(libs.androidx.core.ktx)
                 implementation(libs.androidx.security.crypto)
                 implementation(libs.sqldelight.android.driver)
             }
