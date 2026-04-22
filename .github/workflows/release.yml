@@ -101,6 +101,16 @@ jobs:
       - name: List generated APKs
         run: find androidApp/build/outputs/apk/release/ -name "*.apk" || exit 1
 
+      - name: Rename release APK
+        run: |
+          APK_PATH=$(find androidApp/build/outputs/apk/release/ -maxdepth 1 -name "*.apk" | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "::error::No release APK found to rename."
+            exit 1
+          fi
+          mv "$APK_PATH" "androidApp/build/outputs/apk/release/Sonic Signature ${{ github.ref_name }}.apk"
+          ls -l androidApp/build/outputs/apk/release/
+
       # ── 9. Generate changelog from commits since the previous tag ─────────────
       # Uses a cryptographically random heredoc delimiter to prevent injection:
       # a commit message containing the exact delimiter on its own line would
