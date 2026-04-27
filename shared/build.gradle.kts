@@ -1,11 +1,10 @@
-import com.android.build.api.dsl.LibraryExtension
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.android.library)
+    alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.compose.compiler)
     // alias(libs.plugins.sqldelight)
@@ -20,7 +19,16 @@ plugins {
 // }
 
 kotlin {
-    androidTarget {
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
+    android {
+        namespace = "com.sonicsignature.shared"
+        compileSdk = 36
+        minSdk = 26
+        withHostTest {}
+
         @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
@@ -47,10 +55,7 @@ kotlin {
             val projectDirPath = project.projectDir.path
             commonWebpackConfig {
                 devServer = (devServer ?: org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig.DevServer()).apply {
-                    static = (static ?: mutableListOf()).apply {
-                        // Serve sources to debug inside browser
-                        add(projectDirPath)
-                    }
+                    static(projectDirPath)
                 }
             }
         }
@@ -61,12 +66,12 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 // Compose
-                implementation(compose.runtime)
-                implementation(compose.foundation)
-                implementation(compose.material3)
-                implementation(compose.ui)
-                implementation(compose.components.resources)
-                implementation(compose.materialIconsExtended)
+                implementation(libs.compose.runtime)
+                implementation(libs.compose.foundation)
+                implementation(libs.compose.material3)
+                implementation(libs.compose.ui)
+                implementation(libs.compose.components.resources)
+                implementation(libs.compose.material.icons.extended)
 
                 // Ktor
                 api(libs.ktor.client.core)
@@ -100,7 +105,6 @@ kotlin {
                 implementation(libs.ktor.client.okhttp)
                 implementation(libs.kotlinx.coroutines.android)
                 implementation(libs.androidx.core.ktx)
-                implementation(libs.androidx.security.crypto)
                 implementation(libs.sqldelight.android.driver)
             }
         }
@@ -129,17 +133,5 @@ kotlin {
                 // For now, Ktor client core is common but wasmJs target might need wasm client engine
             }
         }
-    }
-}
-
-extensions.configure<LibraryExtension>("android") {
-    namespace = "com.sonicsignature.shared"
-    compileSdk = 36
-    defaultConfig {
-        minSdk = 26
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
     }
 }
