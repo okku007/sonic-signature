@@ -3,7 +3,7 @@ package com.sonicsignature.engine
 import com.sonicsignature.model.MoodVector
 import com.sonicsignature.model.SonicAttributes
 import com.sonicsignature.model.UserSonicProfile
-import kotlinx.datetime.Clock
+import kotlin.time.Clock
 
 object ProfileAggregator {
 

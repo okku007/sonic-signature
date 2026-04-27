@@ -7,8 +7,9 @@ plugins {
 }
 
 kotlin {
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
     wasmJs {
-        moduleName = "webApp"
+        outputModuleName.set("webApp")
         browser {
             val projectDirPath = project.projectDir.path
             commonWebpackConfig {
