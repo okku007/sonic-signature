@@ -1,63 +1,74 @@
-name: Release
+name: Android Release APK
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+  workflow_dispatch:
 
-# Ensure only one release job runs at a time per tag
 concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-release:
     name: Build & Publish Release
-    # Pinned runner — avoids silent breakage when ubuntu-latest changes OS version
     runs-on: ubuntu-22.04
-    # Prevent hung builds from holding secrets in a live runner for hours
     timeout-minutes: 30
 
     permissions:
-      contents: write   # Required to create a GitHub Release and upload assets
+      contents: write
 
     steps:
-      # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout repository
-        # actions/checkout v4 — SHA verified via GitHub API
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        uses: actions/checkout@v6
         with:
-          fetch-depth: 0   # Full history needed for changelog generation
+          fetch-depth: 0
 
-      # ── 2. Java / JDK ────────────────────────────────────────────────────────
       - name: Set up JDK 17
-        # actions/setup-java v4 — SHA verified via GitHub API
-        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9
+        uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: '17'
-          cache: 'gradle'
 
-      # ── 3. Grant execute permission for gradlew ───────────────────────────────
-      # Done BEFORE keystore is decoded so the file never exists on disk during
-      # any step that doesn't strictly require it.
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      # ── 4. Validate Gradle wrapper integrity ──────────────────────────────────
-      # Verifies gradlew checksum against Gradle's published manifests.
-      # Must run BEFORE the keystore is decoded — we don't want a tampered
-      # wrapper stealing signing credentials.
       - name: Validate Gradle wrapper
-        # gradle/actions/wrapper-validation v4 — SHA verified via GitHub API
-        uses: gradle/actions/wrapper-validation@ed408507eac070d1f99cc633dbcf757c94c7933a
+        uses: gradle/actions/wrapper-validation@v6
 
-      # ── 5. Decode & write keystore from secret ────────────────────────────────
-      # Secret is passed as an OS env var — never interpolated into shell script text.
-      # Written to /tmp (outside the workspace) to prevent accidental inclusion in
-      # artifact uploads, Gradle config-cache snapshots, or other workspace scans.
-      # Guarded against an empty/unset secret — produces a clear error instead of
-      # a confusing "corrupt keystore" Gradle failure.
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
+
+      - name: Prepare release metadata
+        id: release_metadata
+        run: |
+          VERSION_NAME=$(sed -nE 's/.*versionName = "([^"]+)".*/\1/p' androidApp/build.gradle.kts | head -n 1)
+          VERSION_CODE=$(sed -nE 's/.*versionCode = ([0-9]+).*/\1/p' androidApp/build.gradle.kts | head -n 1)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+
+          if [ -z "$VERSION_NAME" ]; then
+            echo "::error::Could not read versionName from androidApp/build.gradle.kts."
+            exit 1
+          fi
+          if [ -z "$VERSION_CODE" ]; then
+            echo "::error::Could not read versionCode from androidApp/build.gradle.kts."
+            exit 1
+          fi
+
+          TAG_NAME="v${VERSION_NAME}-build.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+          RELEASE_NAME="Sonic Signature ${VERSION_NAME} build ${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}"
+
+          {
+            echo "tag_name=$TAG_NAME"
+            echo "release_name=$RELEASE_NAME"
+            echo "version_name=$VERSION_NAME"
+            echo "version_code=$VERSION_CODE"
+            echo "short_sha=$SHORT_SHA"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Decode keystore
         env:
           KEYSTORE_B64: ${{ secrets.RELEASE_KEYSTORE }}
@@ -66,29 +77,27 @@ jobs:
             echo "::error::RELEASE_KEYSTORE secret is not set or is empty. Cannot sign the APK."
             exit 1
           fi
+
           KEYSTORE_FILE=$(mktemp /tmp/release-XXXXXX.keystore)
-          # Strip ALL whitespace (spaces, newlines, \r) before decoding.
-          # GitHub Secrets pasted via the UI often contain hidden whitespace that
-          # causes 'base64: invalid input' with GNU coreutils strict mode.
           echo "$KEYSTORE_B64" | tr -d '[:space:]' | base64 --decode > "$KEYSTORE_FILE"
           echo "KEYSTORE_FILE=$KEYSTORE_FILE" >> "$GITHUB_ENV"
           echo "KEYSTORE_PATH=$KEYSTORE_FILE" >> "$GITHUB_ENV"
 
-      # ── 6. Build signed release APK ───────────────────────────────────────────
-      # Secrets are passed as OS-level env vars to Gradle — never in script text.
-      # KEYSTORE_FILE comes from $GITHUB_ENV (set in the decode step above).
       - name: Build release APK
-        # KEYSTORE_PATH is already in the OS environment via $GITHUB_ENV (set in
-        # the decode step). Only secrets need to be explicitly forwarded here.
         env:
-          KEY_ALIAS:      ${{ secrets.RELEASE_KEY_ALIAS }}
+          KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          KEY_PASSWORD:   ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: ./gradlew :androidApp:assembleRelease
+          KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        run: |
+          for secret_name in KEYSTORE_PATH KEY_ALIAS STORE_PASSWORD KEY_PASSWORD; do
+            if [ -z "${!secret_name}" ]; then
+              echo "::error::${secret_name} is not set or is empty. Cannot sign the APK."
+              exit 1
+            fi
+          done
 
-      # ── 7. Clean up keystore from disk ────────────────────────────────────────
-      # Deleted immediately after build — minimum possible on-disk lifetime.
-      # if: always() ensures cleanup runs even when the build step fails.
+          ./gradlew :androidApp:assembleRelease --no-daemon
+
       - name: Remove keystore
         if: always()
         run: |
@@ -96,57 +105,73 @@ jobs:
             rm -f "$KEYSTORE_FILE"
           fi
 
-      # ── 8. Collect APK artifacts ──────────────────────────────────────────────
-      # Fail fast with a clear error if the APK output directory or files are missing.
       - name: List generated APKs
-        run: find androidApp/build/outputs/apk/release/ -name "*.apk" || exit 1
+        run: find androidApp/build/outputs/apk/release/ -maxdepth 1 -name "*.apk" -print
 
-      - name: Rename release APK
+      - name: Prepare APK artifact
         run: |
           APK_PATH=$(find androidApp/build/outputs/apk/release/ -maxdepth 1 -name "*.apk" | head -n 1)
           if [ -z "$APK_PATH" ]; then
-            echo "::error::No release APK found to rename."
+            echo "::error::No release APK found."
             exit 1
           fi
-          mv "$APK_PATH" "androidApp/build/outputs/apk/release/Sonic Signature ${{ github.ref_name }}.apk"
-          ls -l androidApp/build/outputs/apk/release/
 
-      # ── 9. Generate changelog from commits since the previous tag ─────────────
-      # Uses a cryptographically random heredoc delimiter to prevent injection:
-      # a commit message containing the exact delimiter on its own line would
-      # otherwise prematurely close the heredoc and inject key=value pairs into
-      # $GITHUB_OUTPUT.
+          mkdir -p artifacts
+          cp "$APK_PATH" "artifacts/Sonic-Signature-${{ steps.release_metadata.outputs.tag_name }}.apk"
+          ls -l artifacts/
+
       - name: Generate changelog
-        id: changelog
         run: |
           PREVIOUS_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           if [ -n "$PREVIOUS_TAG" ]; then
-            CHANGELOG=$(git log "$PREVIOUS_TAG"..HEAD --pretty=format:"- %s (%h)" --no-merges)
+            git log "$PREVIOUS_TAG"..HEAD --pretty=format:"- %s (%h)" --no-merges > changelog.md
           else
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+            git log --pretty=format:"- %s (%h)" --no-merges > changelog.md
           fi
-          DELIMITER="CHANGELOG_$(openssl rand -hex 8)"
-          {
-            echo "content<<$DELIMITER"
-            echo "$CHANGELOG"
-            echo "$DELIMITER"
-          } >> "$GITHUB_OUTPUT"
 
-      # ── 10. Create GitHub Release & upload APKs ───────────────────────────────
-      - name: Create GitHub Release
-        # softprops/action-gh-release v2 — SHA verified via GitHub API
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b
+          if [ ! -s changelog.md ]; then
+            echo "- No commits found." > changelog.md
+          fi
+
+      - name: Create release tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.release_metadata.outputs.tag_name }}" -m "${{ steps.release_metadata.outputs.release_name }}"
+          git push origin "${{ steps.release_metadata.outputs.tag_name }}"
+
+      - name: Prepare release notes
+        run: |
+          cat > release-notes.md <<EOF
+          Production APK build from main.
+
+          Version: ${{ steps.release_metadata.outputs.version_name }}
+          Version code: ${{ steps.release_metadata.outputs.version_code }}
+          Commit: ${{ steps.release_metadata.outputs.short_sha }}
+          Tag: ${{ steps.release_metadata.outputs.tag_name }}
+          Workflow run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+
+          ## What's changed
+
+          EOF
+          cat changelog.md >> release-notes.md
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v7
         with:
-          tag_name: ${{ github.ref_name }}
-          name: "Release ${{ github.ref_name }}"
-          body: |
-            ## What's changed in ${{ github.ref_name }}
+          name: Sonic-Signature-release-apk-${{ steps.release_metadata.outputs.tag_name }}
+          path: artifacts/*.apk
+          if-no-files-found: error
+          retention-days: 14
 
-            ${{ steps.changelog.outputs.content }}
-
-            ---
-            *Generated automatically by GitHub Actions.*
-          files: androidApp/build/outputs/apk/release/*.apk
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_metadata.outputs.tag_name }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.release_metadata.outputs.release_name }}
+          body_path: release-notes.md
+          files: artifacts/*.apk
           fail_on_unmatched_files: true
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: false
