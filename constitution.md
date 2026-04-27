@@ -1,7 +1,7 @@
 # Constitution: IEM Tonal Mapping Engine
 **Version:** 1.0  
 **Status:** Ratified  
-**Last Updated:** 2026-02-19  
+**Last Updated:** 2026-04-28  
 **Authority:** This document supersedes all other documents. No task, plan, or code may violate these principles.
 
 ---
@@ -18,7 +18,7 @@ This constitution establishes the non-negotiable principles governing the design
 All user data — including preferences, API keys, search history, and recommendation results — must be stored exclusively on the user's device. No user data shall be transmitted to any server operated by this project.
 
 ### §1.2 — No Central Key Escrow
-API keys (Spotify, Gemini, OpenRouter, or any future provider) must never be:
+API keys (Last.fm, OpenRouter, Gemini, or any future provider) must never be:
 - Sent to a project-operated server
 - Logged to any logging system (console, file, crash reporter)
 - Stored in plaintext on disk
@@ -40,29 +40,29 @@ No API key for any LLM provider (Gemini, OpenRouter, or otherwise) may be hard-c
 ### §2.2 — No Proxying of LLM Requests
 The application must not route LLM API calls through any intermediary server operated by this project. All LLM requests must originate directly from the user's device to the provider's API endpoint.
 
-### §2.3 — Provider Neutrality
-The application must not favor any specific LLM provider in its UX or default configuration. Gemini and OpenRouter must be presented as equal options. Future providers may be added without architectural changes.
+### §2.3 — Provider Extensibility
+The application may ship with one supported LLM provider, but provider selection must stay isolated behind `LLMProvider` and `LLMClientFactory` so future providers can be added without rewriting recommendation logic. The UI must not imply that a provider is supported unless the runtime can actually create and validate that provider.
 
 ### §2.4 — Model Transparency
 The user must always be able to see which LLM provider and model ID is being used for their recommendations. This information must be visible in the Settings screen.
 
 ---
 
-## Article III — Spotify API Compliance
+## Article III — Music Metadata API Compliance
 
 ### §3.1 — Metadata Only
-Spotify data (audio features, track metadata, genre information) must be used solely as input signals for IEM recommendation prompts. It must never be:
+Music metadata from external providers such as Last.fm must be used solely as input signals for IEM recommendation prompts. It must never be:
 - Used to train, fine-tune, or evaluate any machine learning model
 - Stored in a database for purposes beyond the immediate session
 - Re-distributed or exposed via any API endpoint
 
-This is a hard requirement of the [Spotify Developer Policy](https://developer.spotify.com/policy). Violation exposes the project to legal risk.
+Provider terms must be checked before adding or changing a music metadata source. If a provider disallows an AI-assisted use case, that provider must not be used for that flow.
 
-### §3.2 — No Spotify Credential Sharing
-Spotify Client ID and Client Secret must be treated as user-provided credentials, stored in `SecureVault`, and never bundled into the application binary or distributed via any channel.
+### §3.2 — No Music Credential Sharing
+Music API credentials must be treated as user-provided credentials, stored in `SecureVault`, and never bundled into the application binary or distributed via any channel.
 
 ### §3.3 — Graceful Degradation
-If the Spotify API is unavailable or credentials are not configured, the application must remain functional via the Genre/Mood input path. Spotify is an enhancement, not a hard dependency.
+If the music metadata API is unavailable or credentials are not configured, the application must remain functional via the Artist and Genre/Mood input paths. Song search is an enhancement, not a hard dependency.
 
 ---
 
@@ -70,7 +70,7 @@ If the Spotify API is unavailable or credentials are not configured, the applica
 
 ### §4.1 — Shared Logic First
 Business logic must be implemented in `commonMain` by default. Platform-specific code is only permitted when:
-- A platform API has no multiplatform equivalent (e.g., Keychain, EncryptedSharedPreferences)
+- A platform API has no multiplatform equivalent (e.g., Keychain, Android Keystore)
 - A platform-specific performance optimization is demonstrably necessary
 
 The target is ≥80% shared code by line count across the `shared` module.
@@ -85,7 +85,7 @@ All async operations that can fail must return `Result<T>` (defined in `util/Res
 All network calls, file I/O, and LLM inference must be performed on a background coroutine dispatcher (`Dispatchers.IO` or `Dispatchers.Default`). UI state updates must be dispatched to `Dispatchers.Main`.
 
 ### §4.5 — Dependency Injection Over Singletons
-Clients (`SpotifyClient`, `LLMProvider`, `SecureVault`) must be injected into ViewModels and Engines, not accessed as global singletons. This ensures testability and platform flexibility.
+Clients (`MusicClient`, `LLMProvider`, `SecureVault`) must be injected into ViewModels and Engines, not accessed as global singletons. This ensures testability and platform flexibility.
 
 ---
 

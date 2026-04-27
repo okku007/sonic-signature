@@ -1,6 +1,6 @@
 # Getting Started — API Keys Setup
 
-Sonic Signature needs two free API keys to work. Here's how to get them in under 5 minutes.
+Sonic Signature needs a Last.fm key for song search and an OpenRouter key for AI recommendations.
 
 ---
 
@@ -22,33 +22,18 @@ In the app: **Settings → Music Data → paste your key → Validate & Save**
 
 ---
 
-## 2. AI Provider Key (Recommendations)
+## 2. OpenRouter API Key (Recommendations)
 
-The LLM analyzes your music taste and recommends IEMs. Pick one:
-
-### Option A — Gemini (Google) · Free tier available
-
-1. Go to **[aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey)**
-2. Click **Create API key**
-3. Select a Google Cloud project (or create one — it's free)
-4. Copy the key
-
-> **Free tier:** 15 requests/minute, 1,500/day on `gemini-2.0-flash-lite`. More than enough for personal use.
-
-In the app: **Settings → AI Provider → select Gemini → paste key → Validate & Save**
-
----
-
-### Option B — OpenRouter (Highly Recommended) · Access 200+ models
+The LLM analyzes your music taste and recommends IEMs. The current app settings and runtime use OpenRouter.
 
 1. Go to **[openrouter.ai](https://openrouter.ai)** and create an account
 2. Go to **[openrouter.ai/keys](https://openrouter.ai/keys)** → **Create Key**
 3. Copy the key (starts with `sk-or-...`)
-4. Add credits if you want paid models, or use free models (e.g. `google/gemini-2.0-flash-exp:free , stepfun/step-3.5-flash:free`)
+4. Add credits if you want paid models, or use a free model.
 
 **Recommended free model ID:** `stepfun/step-3.5-flash:free`
 
-In the app: **Settings → AI Provider → select OpenRouter → paste key + model ID → Validate & Save**
+In the app: **Settings → AI Provider → paste key + model ID → Validate & Save**
 
 ---
 
