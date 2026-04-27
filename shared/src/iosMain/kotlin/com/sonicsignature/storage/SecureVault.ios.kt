@@ -1,5 +1,6 @@
 package com.sonicsignature.storage
 
+import com.russhwolf.settings.ExperimentalSettingsImplementation
 import com.russhwolf.settings.KeychainSettings
 import com.russhwolf.settings.set
 
@@ -9,6 +10,7 @@ import com.russhwolf.settings.set
  * Keys are isolated by the Secure Enclave on supported devices.
  * Constitution §1.3: Platform-native secure storage.
  */
+@OptIn(ExperimentalSettingsImplementation::class)
 actual class SecureVault {
 
     private val settings = KeychainSettings("com.sonicsignature.vault")
